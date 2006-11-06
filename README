@@ -1,0 +1,32 @@
+Math::Polynom
+=============
+
+Math::Polynom implements basic operations on polynoms,
+in a production-robust and fail safe way.
+Its main feature is to find the root of a polynom having
+non integer powers with Newton Raphson.
+
+See perldoc Math::Polynom for more information.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module has no dependencies.
+
+AUTHOR
+
+Erwan Lemonnier
+
+COPYRIGHT AND LICENCE
+
+See perldoc Math::Polynom
+
+
