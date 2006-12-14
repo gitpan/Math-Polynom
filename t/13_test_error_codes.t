@@ -1,5 +1,5 @@
 #
-#   $Id: 13_test_error_codes.t,v 1.1 2006/11/06 07:34:35 erwan Exp $
+#   $Id: 13_test_error_codes.t,v 1.2 2006/12/14 10:01:10 erwan Exp $
 #
 #   test Math::Polynom->solve
 #

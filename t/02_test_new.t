@@ -1,5 +1,5 @@
 #
-#   $Id: 02_test_new.t,v 1.4 2006/11/06 07:34:34 erwan Exp $
+#   $Id: 02_test_new.t,v 1.5 2006/12/14 10:01:09 erwan Exp $
 #
 #   test Math::Polynom->new
 #

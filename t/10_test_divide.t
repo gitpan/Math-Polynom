@@ -1,5 +1,5 @@
 #
-#   $Id: 10_test_divide.t,v 1.2 2006/11/06 07:34:35 erwan Exp $
+#   $Id: 10_test_divide.t,v 1.3 2006/12/14 10:01:09 erwan Exp $
 #
 #   test Math::Polynom->divide
 #

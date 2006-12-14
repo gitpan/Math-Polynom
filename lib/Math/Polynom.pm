@@ -2,9 +2,10 @@
 #
 #   Math::Polynom - Operations on polynoms
 #
-#   $Id: Polynom.pm,v 1.4 2006/11/06 07:34:34 erwan Exp $
+#   $Id: Polynom.pm,v 1.5 2006/12/14 09:47:23 erwan Exp $
 #
 #   061025 erwan Started implementation
+#   061206 erwan Added the secant method
 #
 
 package Math::Polynom;
@@ -17,12 +18,13 @@ use Data::Dumper;
 
 use accessors qw(error error_message);
 
-use constant NO_ERROR            => 0;
-use constant ERROR_NAN           => 1;
-use constant ERROR_MAX_DEPTH     => 2;
-use constant ERROR_EMPTY_POLYNOM => 3;
+use constant NO_ERROR             => 0;
+use constant ERROR_NAN            => 1;
+use constant ERROR_MAX_DEPTH      => 2;
+use constant ERROR_EMPTY_POLYNOM  => 3;
+use constant ERROR_DIVIDE_BY_ZERO => 4;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 #----------------------------------------------------------------
 #
@@ -77,6 +79,13 @@ sub _is_number {
 sub _error {
     my $msg = shift;
     croak __PACKAGE__." ERROR: $msg\n";
+}
+
+sub _exception {
+    my($self,$code,$msg) = @_;
+    $self->error_message($msg);
+    $self->error($code);
+    croak $self->error_message;
 }
 
 #################################################################
@@ -152,7 +161,7 @@ sub eval {
 
     _error("eval() got wrong number of arguments") if (scalar @_ != 2);
     _error("eval() got undefined argument")        if (!defined $x);
-    _error("eval()'s argument is not numeric")     if (!_is_number($x));
+    _error("eval()'s argument is not numeric ($x)")     if (!_is_number($x));
 
     my $r = 0;
     while (my($power,$coef) = each %{$self->{polynom}} ) {
@@ -262,10 +271,10 @@ sub divide {
 
 #----------------------------------------------------------------
 #
-#   solve - attempt to find a polynom's root with Newton Raphson
+#   newton_raphson - attempt to find a polynom's root with Newton Raphson
 #
 
-sub solve {
+sub newton_raphson {
     my($self,%hash) = @_;
     my $new_guess = 1;
     my $precision = 0.1;
@@ -275,18 +284,15 @@ sub solve {
     $precision = $hash{precision} if (exists $hash{precision});
     $max_depth = $hash{max_depth} if (exists $hash{max_depth});
     
-    _error("solve() got undefined guess")       if (!defined $new_guess);
-    _error("solve() got undefined precision")   if (!defined $precision);
-    _error("solve() got undefined max_depth")   if (!defined $max_depth);
-    _error("solve() got non numeric guess")     if (!_is_number($new_guess));
-    _error("solve() got non numeric precision") if (!_is_number($precision));
-    _error("solve() got non integer max_depth") if ($max_depth !~ /^\d+$/);
+    _error("newton_raphson() got undefined guess")       if (!defined $new_guess);
+    _error("newton_raphson() got undefined precision")   if (!defined $precision);
+    _error("newton_raphson() got undefined max_depth")   if (!defined $max_depth);
+    _error("newton_raphson() got non numeric guess")     if (!_is_number($new_guess));
+    _error("newton_raphson() got non numeric precision") if (!_is_number($precision));
+    _error("newton_raphson() got non integer max_depth") if ($max_depth !~ /^\d+$/);
 
-    if (scalar keys %{$self->{polynom}} == 0) {
-	$self->error_message("cannot find the root of an empty polynom");
-	$self->error(ERROR_EMPTY_POLYNOM);
-	croak $self->error_message;
-    }
+    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom")
+	if (scalar keys %{$self->{polynom}} == 0);
 
     my $derivate = $self->derivate;
     my $old_guess = $new_guess - 2*$precision; # pass the while condition first time
@@ -294,21 +300,21 @@ sub solve {
 
     while (abs($new_guess - $old_guess) > $precision) {
 	$old_guess = $new_guess;
-	$new_guess = $old_guess - $self->eval($old_guess)/$derivate->eval($old_guess);
+
+	my $dividend = $derivate->eval($old_guess);
+	$self->_exception(ERROR_DIVIDE_BY_ZERO,"division by zero at depth $count: polynom's derivate is 0 at $old_guess")
+	    if ($dividend == 0);
+	
+	$new_guess = $old_guess - $self->eval($old_guess)/$dividend;
 
 	$count++;
-	if ($count > $max_depth) {
-	    $self->error_message("reached maximum number of iterations [$max_depth] without getting close enough to the root of:\n".
-				 $self->stringify."\nwith arguments:\n".Dumper(\%hash));
-	    $self->error(ERROR_MAX_DEPTH);
-	    croak $self->error_message;
-	}
+	$self->_exception(ERROR_MAX_DEPTH,"reached maximum number of iterations [$max_depth] without getting close enough to the root of:\n".
+			  $self->stringify."\nwith arguments:\n".Dumper(\%hash))
+	    if ($count > $max_depth);
 	
-	if ($new_guess eq 'nan') {
-	    $self->error_message("not a real number at iteration $count in solve() on polynom:\n".$self->stringify."\nwith arguments:\n".Dumper(\%hash));
-	    $self->error(ERROR_NAN);
-	    croak $self->error_message;
-	}
+	$self->_exception(ERROR_NAN,"not a real number at iteration $count in newton_raphson() on polynom:\n".
+			  $self->stringify."\nwith arguments:\n".Dumper(\%hash))
+	    if ($new_guess eq 'nan');	    
     }
     
     return $new_guess;
@@ -316,8 +322,75 @@ sub solve {
 
 #----------------------------------------------------------------
 #
-#   flush_errors - reset errors on a polynom
+#   secant - implement the Secant algorithm to approximate the root of this polynom
 #
+
+sub secant {
+    my($self,%hash) = @_;
+    my $precision = 0.1;
+    my $max_depth = 100;
+    my($p0,$p1);
+    
+    $precision = $hash{precision} if (exists $hash{precision});
+    $max_depth = $hash{max_depth} if (exists $hash{max_depth});
+    $p0        = $hash{p0}        if (exists $hash{p0});
+    $p1        = $hash{p1}        if (exists $hash{p1});
+
+    _error("secant() got undefined precision")      if (!defined $precision);
+    _error("secant() got undefined max_depth")      if (!defined $max_depth);
+    _error("secant() got non numeric precision")    if (!_is_number($precision));
+    _error("secant() got non integer max_depth")    if ($max_depth !~ /^\d+$/);
+    _error("secant() got undefined p0")             if (!defined $p0);
+    _error("secant() got undefined p1")             if (!defined $p1);
+    _error("secant() got non numeric p0")           if (!_is_number($p0));
+    _error("secant() got non numeric p1")           if (!_is_number($p1));    
+    _error("secant() got same value for p0 and p1") if ($p0 == $p1);
+
+    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom")
+	if (scalar keys %{$self->{polynom}} == 0);
+
+    # NOTE: this code is almost a copy/paste from Math::Function::Roots
+
+    my $q0 = $self->eval($p0);
+    my $q1 = $self->eval($p1);
+    my $p;
+
+    return $p0 if ($q0 == 0);
+    return $p1 if ($q1 == 0);
+
+    for (my $depth = 0; $depth <= $max_depth; $depth++) {
+	
+	if (($q1 - $q0) == 0) {
+	    $self->_exception(ERROR_DIVIDE_BY_ZERO,"division by zero at depth $depth with p0=$p0, p1=$p1, q1=q0=$q1\non polynom:\n".
+			      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
+	}
+	   
+	$p = ($q1 * $p0 - $p1 * $q0) / ($q1 - $q0);
+
+	if ($p eq 'nan') {
+	    $self->_exception(ERROR_NAN,"p is not a real number at iteration $depth in secant() on polynom:\n".
+			      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
+	}
+
+	$p0 = $p1;
+	$q0 = $q1;
+	$q1 = $self->eval($p);
+
+	if ($q1 eq 'nan') {
+	    $self->_exception(ERROR_NAN,"q1 is not a real number at iteration $depth in secant() on polynom:\n".
+			      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
+	}
+	
+	if ($q1 == 0 || abs($p - $p1) <= $precision) {
+	    return $p;
+	}
+
+	$p1 = $p;
+    }
+
+    $self->_exception(ERROR_MAX_DEPTH,"reached maximum number of iterations [$max_depth] without getting close enough to the root of:\n".
+		      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
+}
 
 1;
 
@@ -363,7 +436,7 @@ Common operations:
 To try to find a root to a polynom using the Newton Raphson method:
 
     my $r;
-    eval { $r = $p1->solve(guess => 2, precision => 0.001); };
+    eval { $r = $p1->newton_raphson(guess => 2, precision => 0.001); };
     if ($@) {
         if ($p1->error) {
             # that's an internal error
@@ -375,13 +448,19 @@ To try to find a root to a polynom using the Newton Raphson method:
         }
     }
 
+Same with the secant method:
+
+    eval { $r = $p1->secant(p0 => 0, p2 => 2, precision => 0.001); };
+
+
 =head1 DESCRIPTION
 
 What! Yet another module to manipulate polynoms!!
 No, don't worry, there is a good reason for this one ;)
 
-I needed (for my work at a large financial institution) a robust way to compute internal return rates (IRR).
-An IRR is typically obtained by solving a usually complex polynom of one variable with up to hundreds of 
+I needed (for my work at a large financial institution) a robust way to compute the internal rate of return (IRR)
+of various cashflows.
+An IRR is typically obtained by solving a usually ughly looking polynom of one variable with up to hundreds of 
 coefficients and non integer powers (ex: powers with decimals). I also needed thorough fault handling.
 Other CPAN modules providing operations on polynoms did not support those requirements. 
 
@@ -391,8 +470,8 @@ check out Math::Polynomial since it provides a more complete api than this one.
 An instance of Math::Polynom is a representation of a 1-variable polynom.
 It supports a few basic operations specific to polynoms such as addition, substraction and multiplication. 
 
-Math::Polynom also implements the Newton Raphson algorithm to find roots of the polynom (which is kind of 
-the main purpose of this module).
+Math::Polynom also implements various root finding algorithms (which is kind of 
+the main purpose of this module) such as the Newton Raphson and Secant methods.
 
 
 =head1 API
@@ -456,9 +535,10 @@ Croaks if provided with weird arguments.
 
 Return a basic string representation of the current polynom. For exemple '3*x^5 + 2*x^2 + 1*x^0'.
 
-=item $r = $p1->B<< solve(guess => $float1, precision => $float2, max_depth => $integer) >>
+=item $r = $p1->B<< newton_raphson(guess => $float1, precision => $float2, max_depth => $integer) >>
 
-Uses the Newton Raphson algorithm to approximate a root for this polynom.
+Uses the Newton Raphson algorithm to approximate a root for this polynom. Beware that this require
+your polynom AND its derivate to be continuous.
 Starts the search with I<guess> and returns the root when the difference between two
 consecutive estimations of the root is smaller than I<precision>. Make at most I<max_depth>
 iterations.
@@ -467,18 +547,18 @@ If I<guess> is omitted, 1 is used as default.
 If I<precision> is omitted, 0.1 is used as default.
 If I<max_depth> is omitted, 100 is used as default.
 
-I<solve> will fail (croak) in a few cases: If the successive approximations of the root 
-still differ with more than I<precision> after I<max_depth> iterations, I<solve> dies,
+I<newton_raphson> will fail (croak) in a few cases: If the successive approximations of the root 
+still differ with more than I<precision> after I<max_depth> iterations, I<newton_raphson> dies,
 and C<< $p1->error >> is set to the code Math::Polynom::ERROR_MAX_DEPTH. If an approximation 
-is not a real number, I<solve> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
-If the polynom is empty, I<solve> dies and C<< $p1->error >> is set to the code 
+is not a real number, I<newton_raphson> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
+If the polynom is empty, I<newton_raphson> dies and C<< $p1->error >> is set to the code 
 Math::Polynom::ERROR_EMPTY_POLYNOM.
 
-I<solve> will also croak if provided with weird arguments.
+I<newton_raphson> will also croak if provided with weird arguments.
 
 Exemple:
 
-    eval { $p->solve(guess => 1, precision => 0.0000001, max_depth => 50); };
+    eval { $p->newton_raphson(guess => 1, precision => 0.0000001, max_depth => 50); };
     if ($@) {
         if ($p->error) {
             if ($p->error == Math::Polynom::ERROR_MAX_DEPTH) {
@@ -489,14 +569,36 @@ Exemple:
                 die "BUG!";
             }
         } else {
-            die "solve died for unknown reason";
+            die "newton_raphson died for unknown reason";
         }
     }
+
+
+=item $r = $p1->B<< secant(p0 => $float1, p1 => $float2, precision => $float3, max_depth => $integer) >>
+
+Use the secant method to approximate a root for this polynom. I<p0> and I<p1> are the two start values
+to initiate the search, I<precision> and I<max_depth> have the same meaning as for I<newton_raphson>.
+
+The polynom should be continuous. Therefore, the secant method might fail on polynomial having monoms
+with degrees lesser than 1.
+
+If I<precision> is omitted, 0.1 is used as default.
+If I<max_depth> is omitted, 100 is used as default.
+
+I<secant> will fail (croak) in a few cases: If the successive approximations of the root 
+still differ with more than I<precision> after I<max_depth> iterations, I<secant> dies,
+and C<< $p1->error >> is set to the code Math::Polynom::ERROR_MAX_DEPTH. If an approximation 
+is not a real number, I<secant> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
+If the polynom is empty, I<secant> dies and C<< $p1->error >> is set to the code 
+Math::Polynom::ERROR_EMPTY_POLYNOM.
+
+I<secant> will also croak if provided with weird arguments.
+
 
 =item $p1->B<error>, $p1->B<error_message>
 
 Respectively the error code and error message set by the last method that failed to run
-on this polynom. For exemple, if I<solve> died, you would access the code of the error
+on this polynom. For exemple, if I<newton_raphson> died, you would access the code of the error
 with I<error()> and a message describing the context of the error in details with
 I<error_message>.
 
@@ -522,9 +624,11 @@ Math::Polynom defines a few error codes, returned by the method I<error>:
 
 =item B<Math::polynom::ERROR_NAN> means a method jammed on a complex number.
 
-=item B<Math::polynom::ERROR_MAX_DEPTH> means the method I<solve> failed to find a good enough root after the specified maximum number of iterations.
+=item B<Math::polynom::ERROR_DIVIDE_BY_ZERO> means what it says.
 
-=item B<Math::polynom::ERROR_EMPTY_POLYNOM> means you tried to perform an operation on an empty polynom (such as I<solve)>
+=item B<Math::polynom::ERROR_MAX_DEPTH> means the root finding algorithm failed to find a good enough root after the specified maximum number of iterations.
+
+=item B<Math::polynom::ERROR_EMPTY_POLYNOM> means you tried to perform an operation on an empty polynom (such as I<newton_raphson)>
 
 =back
 
@@ -532,20 +636,26 @@ Math::Polynom defines a few error codes, returned by the method I<error>:
 
 This module is built for robustness in order to run in requiring production environments. 
 Yet it has one limitation: due to Perl's 
-inability at handling large numbers, I<solve> will return garbage if starting on a guess
-value that is very far from the root. Exemple:
+inability at handling large floats, root finding algorithms will get lost if starting on a guess
+value that is too far from the root. Example:
 
     my $p = Math::Polynom->new(2 => 1, 1 => -2, 0 => 1); # x^2 -2*x +1
-    $p->solve(guess => 100000000000000000); 
+    $p->newton_raphson(guess => 100000000000000000); 
     # returns 1e17 as the root
+
+
 
 =head1 SEE ALSO
 
-See Math::Calculus::NewtonRaphson, Math::Polynomial.
+See Math::Calculus::NewtonRaphson, Math::Polynomial, Math::Function::Roots.
 
 =head1 VERSION
 
-$Id: Polynom.pm,v 1.4 2006/11/06 07:34:34 erwan Exp $
+$Id: Polynom.pm,v 1.5 2006/12/14 09:47:23 erwan Exp $
+
+=head1 THANKS
+
+Thanks to Spencer Ogden who wrote the implementation of the Secant algorithm in his module Math::Function::Roots. 
 
 =head1 AUTHOR
 

@@ -1,5 +1,5 @@
 #
-#   $Id: 03_test_stringify.t,v 1.3 2006/10/25 06:32:36 erwan Exp $
+#   $Id: 03_test_stringify.t,v 1.4 2006/12/14 10:01:09 erwan Exp $
 #
 #   test Math::Polynom->new
 #

@@ -1,10 +1,10 @@
 Math::Polynom
 =============
 
-Math::Polynom implements basic operations on polynoms,
-in a production-robust and fail safe way.
-Its main feature is to find the root of a polynom having
-non integer powers with Newton Raphson.
+Math::Polynom implements basic operations on polynoms
+and a couple of root finding methods.
+It is designed to be robust, fail-safe and able to
+handle polynoms with non integer positive powers.
 
 See perldoc Math::Polynom for more information.
 

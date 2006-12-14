@@ -1,5 +1,5 @@
 #
-#   $Id: 08_test_minus.t,v 1.2 2006/11/06 07:34:34 erwan Exp $
+#   $Id: 08_test_minus.t,v 1.3 2006/12/14 10:01:09 erwan Exp $
 #
 #   test Math::Polynom->minus
 #
