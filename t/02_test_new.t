@@ -1,5 +1,5 @@
 #
-#   $Id: 02_test_new.t,v 1.5 2006/12/14 10:01:09 erwan Exp $
+#   $Id: 02_test_new.t,v 1.6 2006/12/15 11:55:54 erwan Exp $
 #
 #   test Math::Polynom->new
 #
@@ -20,6 +20,7 @@ is_deeply($p1,
 	  {
 	      polynom => { 1 => 2, 3 => 4 },
 	      -error  => 0,
+	      -iterations => 0,
 	  },
 	  "check content"
 	);
@@ -31,6 +32,7 @@ is_deeply($p1,
 	  {
 	      polynom => { 1.8 => 5.2 },
 	      -error  => 0,
+	      -iterations => 0,
 	  },
 	  "check content"
 	);
@@ -38,7 +40,7 @@ is_deeply($p1,
 $p1 = new Math::Polynom();
 
 is(ref $p1, "Math::Polynom", "check type (empty polynom)");
-is_deeply($p1,{ polynom => {}, -error => 0 },"check content (empty polynom)");
+is_deeply($p1,{ polynom => {}, -error => 0, -iterations => 0 },"check content (empty polynom)");
 ok(!$p1->error,"polynom contains no error");
 
 # test _is_number, indirectly

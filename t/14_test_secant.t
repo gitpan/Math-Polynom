@@ -1,12 +1,12 @@
 #
-#   $Id: 14_test_secant.t,v 1.1 2006/12/14 10:01:10 erwan Exp $
+#   $Id: 14_test_secant.t,v 1.2 2006/12/15 11:55:54 erwan Exp $
 #
 #   test Math::Polynom->secant
 #
 
 use strict;
 use warnings;
-use Test::More tests => 29;
+use Test::More tests => 34;
 use lib "../lib/";
 
 use Math::Polynom;
@@ -27,13 +27,19 @@ sub test_secant {
 }
 
 my $p1 = Math::Polynom->new(2 => 1, 0 => -4);
+is($p1->iterations,0,"p1->iterations=0 before search");
 test_secant($p1, {p0 => 0.5, p1 => 1}, 2);
+is($p1->iterations,3,"p1->iterations=3 after search");
 test_secant($p1, {p0 => 0.5, p1 => 1}, 2);
 test_secant($p1, {p0 => -5, p1 => -1}, -2);
 test_secant($p1, {p0 => 0.5, p1 => 1}, 2);
 test_secant($p1, {p0 => 0.5, p1 => 1, precision => 0.0001}, 2);
 test_secant($p1, {p0 => 0.5, p1 => 1, precision => 0.0000001}, 2);
 test_secant($p1, {p0 => 0, p1 => -100, precision => 0.0000001}, -2);
+is($p1->iterations,14,"p1->iterations=14 after search");
+test_secant($p1, {p0 => 0.5, p1 => 1}, 2);
+is($p1->iterations,3,"p1->iterations=3 after simpler search");
+
 
 my $p2 = Math::Polynom->new(5 => 5, 3.2 => 4, 0.9 => -2);  # 5*x^5 + 4*x^3.2 - 2*x^0.9
 test_secant($p2, {p0 => 0.5, p1 => 1, precision => 0.000000000000001}, 0.6161718040343);

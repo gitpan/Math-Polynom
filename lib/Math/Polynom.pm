@@ -2,10 +2,11 @@
 #
 #   Math::Polynom - Operations on polynoms
 #
-#   $Id: Polynom.pm,v 1.5 2006/12/14 09:47:23 erwan Exp $
+#   $Id: Polynom.pm,v 1.7 2006/12/15 14:17:50 erwan Exp $
 #
 #   061025 erwan Started implementation
 #   061206 erwan Added the secant method
+#   061214 erwan Added Brent's method
 #
 
 package Math::Polynom;
@@ -16,15 +17,16 @@ use warnings;
 use Carp qw(confess croak);
 use Data::Dumper;
 
-use accessors qw(error error_message);
+use accessors qw(error error_message iterations xpos xneg);
 
 use constant NO_ERROR             => 0;
 use constant ERROR_NAN            => 1;
 use constant ERROR_MAX_DEPTH      => 2;
 use constant ERROR_EMPTY_POLYNOM  => 3;
 use constant ERROR_DIVIDE_BY_ZERO => 4;
+use constant ERROR_WRONG_SIGNS    => 5;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 #----------------------------------------------------------------
 #
@@ -82,9 +84,17 @@ sub _error {
 }
 
 sub _exception {
-    my($self,$code,$msg) = @_;
+    my($self,$code,$msg,$args) = @_;
+
+    $msg = "ERROR: $msg\nwith polynom:\n".$self->stringify."\n";
+    if (defined $args) {
+	$msg .= "with arguments:\n".Dumper($args);
+    }
+    $msg .= "at iteration ".$self->iterations."\n";
+
     $self->error_message($msg);
     $self->error($code);
+
     croak $self->error_message;
 }
 
@@ -114,6 +124,7 @@ sub new {
 
     my $self = bless({polynom => \%hash},$pkg)->_clean;
     $self->error(NO_ERROR);
+    $self->iterations(0);
     return $self;
 }
 
@@ -159,13 +170,21 @@ sub derivate {
 sub eval {
     my($self,$x) = @_;
 
-    _error("eval() got wrong number of arguments") if (scalar @_ != 2);
-    _error("eval() got undefined argument")        if (!defined $x);
-    _error("eval()'s argument is not numeric ($x)")     if (!_is_number($x));
+    _error("eval() got wrong number of arguments")  if (scalar @_ != 2);
+    _error("eval() got undefined argument")         if (!defined $x);
+    _error("eval()'s argument is not numeric ($x)") if (!_is_number($x));
 
     my $r = 0;
     while (my($power,$coef) = each %{$self->{polynom}} ) {
 	$r += $coef*($x**$power);
+    }
+
+    if ($r ne 'nan') {
+	if (!defined $self->xpos && $r > 0) {
+	    $self->xpos($x);
+	} elsif (!defined $self->xneg && $r < 0) {
+	    $self->xneg($x);
+	}
     }
 
     return $r;
@@ -280,6 +299,8 @@ sub newton_raphson {
     my $precision = 0.1;
     my $max_depth = 100;
     
+    $self->iterations(0);
+
     $new_guess = $hash{guess}     if (exists $hash{guess});
     $precision = $hash{precision} if (exists $hash{precision});
     $max_depth = $hash{max_depth} if (exists $hash{max_depth});
@@ -291,30 +312,27 @@ sub newton_raphson {
     _error("newton_raphson() got non numeric precision") if (!_is_number($precision));
     _error("newton_raphson() got non integer max_depth") if ($max_depth !~ /^\d+$/);
 
-    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom")
+    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom",\%hash)
 	if (scalar keys %{$self->{polynom}} == 0);
 
     my $derivate = $self->derivate;
     my $old_guess = $new_guess - 2*$precision; # pass the while condition first time
-    my $count = 0;
 
     while (abs($new_guess - $old_guess) > $precision) {
 	$old_guess = $new_guess;
 
 	my $dividend = $derivate->eval($old_guess);
-	$self->_exception(ERROR_DIVIDE_BY_ZERO,"division by zero at depth $count: polynom's derivate is 0 at $old_guess")
+	$self->_exception(ERROR_DIVIDE_BY_ZERO,"division by zero: polynomial's derivate is 0 at $old_guess",\%hash)
 	    if ($dividend == 0);
 	
 	$new_guess = $old_guess - $self->eval($old_guess)/$dividend;
 
-	$count++;
-	$self->_exception(ERROR_MAX_DEPTH,"reached maximum number of iterations [$max_depth] without getting close enough to the root of:\n".
-			  $self->stringify."\nwith arguments:\n".Dumper(\%hash))
-	    if ($count > $max_depth);
+	$self->iterations($self->iterations + 1);
+	$self->_exception(ERROR_MAX_DEPTH,"reached maximum number of iterations [$max_depth] without getting close enough to the.",\%hash)
+	    if ($self->iterations > $max_depth);
 	
-	$self->_exception(ERROR_NAN,"not a real number at iteration $count in newton_raphson() on polynom:\n".
-			  $self->stringify."\nwith arguments:\n".Dumper(\%hash))
-	    if ($new_guess eq 'nan');	    
+	$self->_exception(ERROR_NAN,"new guess is not a real number in newton_raphson().",\%hash)
+	    if ($new_guess eq 'nan');
     }
     
     return $new_guess;
@@ -330,6 +348,8 @@ sub secant {
     my $precision = 0.1;
     my $max_depth = 100;
     my($p0,$p1);
+
+    $self->iterations(0);
     
     $precision = $hash{precision} if (exists $hash{precision});
     $max_depth = $hash{max_depth} if (exists $hash{max_depth});
@@ -346,10 +366,10 @@ sub secant {
     _error("secant() got non numeric p1")           if (!_is_number($p1));    
     _error("secant() got same value for p0 and p1") if ($p0 == $p1);
 
-    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom")
+    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom",\%hash)
 	if (scalar keys %{$self->{polynom}} == 0);
 
-    # NOTE: this code is almost a copy/paste from Math::Function::Roots
+    # NOTE: this code is almost a copy/paste from Math::Function::Roots, I just added exception handling
 
     my $q0 = $self->eval($p0);
     my $q1 = $self->eval($p1);
@@ -359,37 +379,208 @@ sub secant {
     return $p1 if ($q1 == 0);
 
     for (my $depth = 0; $depth <= $max_depth; $depth++) {
-	
-	if (($q1 - $q0) == 0) {
-	    $self->_exception(ERROR_DIVIDE_BY_ZERO,"division by zero at depth $depth with p0=$p0, p1=$p1, q1=q0=$q1\non polynom:\n".
-			      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
-	}
+
+	$self->iterations($depth);
+
+	$self->_exception(ERROR_DIVIDE_BY_ZERO,"division by zero with p0=$p0, p1=$p1, q1=q0=$q1 in secant()",\%hash)	
+	    if (($q1 - $q0) == 0);
 	   
 	$p = ($q1 * $p0 - $p1 * $q0) / ($q1 - $q0);
 
-	if ($p eq 'nan') {
-	    $self->_exception(ERROR_NAN,"p is not a real number at iteration $depth in secant() on polynom:\n".
-			      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
-	}
+	$self->_exception(ERROR_NAN,"p is not a real number in secant()",\%hash)
+	    if ($p eq 'nan');
 
 	$p0 = $p1;
 	$q0 = $q1;
 	$q1 = $self->eval($p);
 
-	if ($q1 eq 'nan') {
-	    $self->_exception(ERROR_NAN,"q1 is not a real number at iteration $depth in secant() on polynom:\n".
-			      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
-	}
-	
-	if ($q1 == 0 || abs($p - $p1) <= $precision) {
-	    return $p;
-	}
+	$self->_exception(ERROR_NAN,"q1 is not a real number in secant()",\%hash)
+	    if ($q1 eq 'nan');
+
+	return $p if ($q1 == 0 || abs($p - $p1) <= $precision);
 
 	$p1 = $p;
     }
 
-    $self->_exception(ERROR_MAX_DEPTH,"reached maximum number of iterations [$max_depth] without getting close enough to the root of:\n".
-		      $self->stringify."\nwith arguments:\n".Dumper(\%hash));
+    $self->_exception(ERROR_MAX_DEPTH,"reached maximum number of iterations [$max_depth] without getting close enough to the root in secant()",\%hash);
+}
+
+#----------------------------------------------------------------
+#
+#   brent - implement Brent's method to approximate the root of this polynom
+#
+
+sub debug {
+    my $msg = shift;
+    #print $msg;
+}
+
+sub brent {
+    my($self,%hash) = @_;
+    my $precision = 0.1;
+    my $max_depth = 100;
+    my $mflag;
+    my($a,$b,$c,$s,$d);
+    my($f_a,$f_b,$f_c,$f_s);
+    
+    $self->iterations(0);
+
+    $precision = $hash{precision} if (exists $hash{precision});
+    $max_depth = $hash{max_depth} if (exists $hash{max_depth});
+    $a         = $hash{a}         if (exists $hash{a});
+    $b         = $hash{b}         if (exists $hash{b});
+
+    _error("brent() got undefined precision")      if (!defined $precision);
+    _error("brent() got undefined max_depth")      if (!defined $max_depth);
+    _error("brent() got non numeric precision")    if (!_is_number($precision));
+    _error("brent() got non integer max_depth")    if ($max_depth !~ /^\d+$/);
+    _error("brent() got undefined a")              if (!defined $a);
+    _error("brent() got undefined b")              if (!defined $b);
+    _error("brent() got non numeric a")            if (!_is_number($a));
+    _error("brent() got non numeric b")            if (!_is_number($b));    
+    _error("brent() got same value for a and b")   if ($a == $b);
+
+    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom in brent()",\%hash)
+	if (scalar keys %{$self->{polynom}} == 0);
+    
+    # The following is an implementation of Brent's method as described on wikipedia
+    # variable names are chosen to match the pseudocode listed on wikipedia
+    # There are a few differences between this code and the pseudocode on wikipedia though...
+
+    $f_a = $self->eval($a);
+    $f_b = $self->eval($b);
+    
+    # if the polynom evaluates to a complex number on $a or $b (ex: square root, when $a = -1)
+    $self->_exception(ERROR_NAN,"polynom is not defined on interval [a=$a, b=$b] in brent()",\%hash)
+	if ($f_a eq 'nan' || $f_b eq 'nan');
+    
+    # did we hit the root by chance?
+    return $a if ($f_a == 0);
+    return $b if ($f_b == 0);
+
+    # $a and $b should be chosen so that poly($a) and poly($b) have opposite signs. 
+    # It is a prerequisite for the bisection part of Brent's method to work
+    $self->_exception(ERROR_WRONG_SIGNS,"polynom does not have opposite signs at a=$a and b=$b in brent()",\%hash)
+	if ($f_a*$f_b > 0);
+
+    # eventually swap $a and $b (don't forget to even switch f(c))
+    if (abs($f_a) < abs($f_b)) {
+	debug "swaping initial a and b\n";
+	($a,$b) = ($b,$a);
+	($f_a,$f_b) = ($f_b,$f_a);
+    }
+    
+    $c = $a;
+    $f_c = $f_a;
+
+    $mflag = 1;
+    
+    # repeat while we haven't found the root nor are close enough to it
+    while ($f_b != 0 && abs($b - $a) > $precision) {
+	
+	# did we reach the maximum number of iterations?
+	$self->_exception(ERROR_MAX_DEPTH,"reached maximum number of iterations [$max_depth] without getting close enough to the root in brent()",\%hash)	
+	    if ($self->iterations > $max_depth);
+
+	# evaluate f(a), f(b) and f(c) if necessary
+	if ($self->iterations != 0) {
+	    $f_a = $self->eval($a);
+	    $f_b = $self->eval($b);
+	    $f_c = $self->eval($c);
+
+	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on a=$a in brent()",\%hash) if ($f_a eq 'nan');
+	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on b=$b in brent()",\%hash) if ($f_b eq 'nan');
+	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on c=$c in brent()",\%hash) if ($f_c eq 'nan');
+	}
+
+	# calculate the next root candidate
+	if ($f_a == $f_b) {
+	    # we should not be able to get $f_b == $f_a since it's a prerequisite of the method. that would be a bug
+	    _error("BUG: got same values for polynom at a=$a and b=$b:\n".$self->stringify);
+
+	} elsif ( ($f_a != $f_c) && ($f_b != $f_c) ) {
+	    # use quadratic interpolation
+	    $s = ($a*$f_b*$f_c)/(($f_a - $f_b)*($f_a - $f_c)) +
+		($b*$f_a*$f_c)/(($f_b - $f_a)*($f_b - $f_c)) +
+		($c*$f_a*$f_b)/(($f_c - $f_a)*($f_c - $f_b));
+	    
+	    debug "using quadratic interpolation: s = $s\n";
+
+	} else {
+	    # otherwise use the secant
+	    $s = $b - $f_b*($b - $a)/($f_b - $f_a);
+
+	    debug "using secant: s = $s\n";
+	}
+	
+	# now comes the main difference between Brent's method and Dekker's method: we want to use bisection when appropriate
+
+# 	debug "special case:".Dumper( 
+# 				      { s => $s,
+# 					a => $a,
+# 					b => $b,
+# 					c => $c,
+# 					d => $d,
+# 				    }
+# 				      )."\n".Dumper( 
+# 						     $mflag,
+# 						     abs($s-$b), abs($b-$c)/2,
+# 						     abs($s-$b), abs($c-$d)/2,
+# 						     ( ($s < (3*$a+$b)/4) && ($s > $b) ), 
+# 						     ( $mflag  && (abs($s-$b) >= (abs($b-$c)/2)) ),
+# 						#     ( !$mflag && (abs($s-$b) >= (abs($c-$d)/2)) ),
+# 						     );
+	
+	if ( ( ($s < (3*$a+$b)/4) && ($s > $b) ) ||
+	     ( $mflag  && (abs($s-$b) >= (abs($b-$c)/2)) ) ||
+	     ( !$mflag && (abs($s-$b) >= (abs($c-$d)/2)) ) ) {
+	    # in that case, use the bisection to get $s
+	    $s = ($a + $b)/2;
+	    $mflag = 1;
+
+	    debug "special case (bisection): s = $s\n";
+	} else {
+	    $mflag = 0;
+	}
+	
+	# calculate f($s)
+	$f_s = $self->eval($s);
+
+	debug "f(s)=$f_s\n";
+	
+	$self->_exception(ERROR_NAN,"polynom leads to an imaginary number on s=$s in brent()",\%hash) if ($f_s eq 'nan');
+	
+	$d = $c;
+	$c = $b;
+	$f_c = $f_b;
+	
+	if ($f_a*$f_s <= 0) {
+	    # important that b=s if f(s)=0 since the while loop checks f(b)
+	    # if f(a)=0, and f(b)!=0, then a and b will be swaped and we will therefore have f(b)=0
+	    debug "f(a)*f(s) < 0 => b=$s\n";
+	    $b = $s;
+	    $f_b = $f_s;
+	} else {
+	    debug "f(a)*f(s) >= 0 => a=$s\n";
+	    $a = $s;
+	    $f_a = $f_s;
+	}
+
+	# eventually swap $a and $b
+	if (abs($f_a) < abs($f_b)) {
+	    # in the special case when 
+	    debug "swaping a and b since f(a)=$f_a and f(b)=$f_b\n";
+	    ($a,$b) = ($b,$a);
+	    ($f_a,$f_b) = ($f_b,$f_a);
+	}
+
+	$self->iterations($self->iterations + 1);
+
+	debug "iter ".$self->iterations.":   a=$a     b=$b     (c=$c    d=$d)\n";
+	debug "      "." f(a)=$f_a  f(b)=$b    \n\n";
+    }
+    
+    return $b;
 }
 
 1;
@@ -595,6 +786,36 @@ Math::Polynom::ERROR_EMPTY_POLYNOM.
 I<secant> will also croak if provided with weird arguments.
 
 
+=item $r = $p1->B<< brent(a => $float1, b => $float2, precision => $float3, max_depth => $integer) >>
+
+Use Brent's method to approximate a root for this polynom. I<a> and I<b> are two floats such that 
+I<< p1->eval(a) >> and I<< p1->eval(b) >> have opposite signs. 
+I<precision> and I<max_depth> have the same meaning as for I<newton_raphson>.
+
+The polynom should be continuous on the interval [a,b].
+
+Brent's method is considered to be one of the most robust root finding methods. It alternatively
+uses the secant, inverse quadratic interpolation and bisection to find the next root candidate
+at each iteration, making it a robust but quite fast converging method.
+
+The difficulty with Brent's method consists in finding the start values a and b for which
+the polynome evaluates to opposite signs. This is somewhat simplified in Math::Polynom
+by the fact that I<eval()> automatically sets I<xpos()> and I<xneg()> when possible.
+
+If I<precision> is omitted, 0.1 is used as default.
+If I<max_depth> is omitted, 100 is used as default.
+
+I<brent> will fail (croak) in a few cases: If the successive approximations of the root 
+still differ with more than I<precision> after I<max_depth> iterations, I<brent> dies,
+and C<< $p1->error >> is set to the code Math::Polynom::ERROR_MAX_DEPTH. If an approximation 
+is not a real number, I<brent> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
+If the polynom is empty, I<brent> dies and C<< $p1->error >> is set to the code 
+Math::Polynom::ERROR_EMPTY_POLYNOM. If provided with a and b that does not lead to values
+having opposite signs, I<brent> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_WRONG_SIGNS.
+
+I<brent> will also croak if provided with weird arguments.
+
+
 =item $p1->B<error>, $p1->B<error_message>
 
 Respectively the error code and error message set by the last method that failed to run
@@ -605,8 +826,25 @@ I<error_message>.
 If the polynom has no error, I<error> returns Math::polynom::NO_ERROR and 
 I<error_message> returns undef.
 
-=back
 
+=item $p1->B<iterations>
+
+Return the number of iterations it took to find the polynom's root. Must be called
+after calling one of the root finding methods.
+
+
+=item $p1->B<xpos>, $p1->B<xneg>
+
+Each time I<eval> is called, it checks whether we know a value xpos for which the polynom
+evaluates to a positive value. If not and if the value provided to I<eval> lead to a positive
+result, this value is stored in I<xpos>. Same thing with I<xneg> and negative results.
+
+This comes in handy when you wish to try the Brent method after failing with the secant
+or Newton methods. If you are lucky, those failed attempts will have identified both a
+xpos and xneg that you can directly use as a and b in I<brent()>.
+
+
+=back
 
 
 =head1 ERROR HANDLING
@@ -622,13 +860,15 @@ Math::Polynom defines a few error codes, returned by the method I<error>:
 
 =item B<Math::polynom::NO_ERROR> is the default return value of method I<error>, and is always set to 0.
 
-=item B<Math::polynom::ERROR_NAN> means a method jammed on a complex number.
+=item B<Math::polynom::ERROR_NAN> means the function jammed on a complex number. Most likely because your polynom is not continuous on the search interval.
 
 =item B<Math::polynom::ERROR_DIVIDE_BY_ZERO> means what it says.
 
 =item B<Math::polynom::ERROR_MAX_DEPTH> means the root finding algorithm failed to find a good enough root after the specified maximum number of iterations.
 
 =item B<Math::polynom::ERROR_EMPTY_POLYNOM> means you tried to perform an operation on an empty polynom (such as I<newton_raphson)>
+
+=item B<Math::polynom::ERROR_WRONG_SIGNS> means that the polynom evaluates to values having the same signs instead of opposite signs on the boundaries of the interval you provided to start the search of the root (ex: Brent's method)
 
 =back
 
@@ -651,7 +891,7 @@ See Math::Calculus::NewtonRaphson, Math::Polynomial, Math::Function::Roots.
 
 =head1 VERSION
 
-$Id: Polynom.pm,v 1.5 2006/12/14 09:47:23 erwan Exp $
+$Id: Polynom.pm,v 1.7 2006/12/15 14:17:50 erwan Exp $
 
 =head1 THANKS
 

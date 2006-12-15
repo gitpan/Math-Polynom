@@ -1,12 +1,12 @@
 #
-#   $Id: 12_test_newton_raphson.t,v 1.1 2006/12/14 10:01:09 erwan Exp $
+#   $Id: 12_test_newton_raphson.t,v 1.2 2006/12/15 11:55:54 erwan Exp $
 #
 #   test Math::Polynom->newton_raphson
 #
 
 use strict;
 use warnings;
-use Test::More tests => 25;
+use Test::More tests => 26;
 use lib "../lib/";
 
 use Math::Polynom;
@@ -28,6 +28,7 @@ sub test_newton_raphson {
 
 my $p1 = Math::Polynom->new(2 => 1, 0 => -4);
 test_newton_raphson($p1, {}, 2);
+is($p1->iterations,3,"p1->iterations=3 after search");
 test_newton_raphson($p1, {guess => 1}, 2);
 test_newton_raphson($p1, {guess => -1}, -2);
 test_newton_raphson($p1, {guess => 100}, 2);

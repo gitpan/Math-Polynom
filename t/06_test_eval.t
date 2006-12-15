@@ -1,12 +1,12 @@
 #
-#   $Id: 06_test_eval.t,v 1.3 2006/12/14 10:01:09 erwan Exp $
+#   $Id: 06_test_eval.t,v 1.5 2006/12/15 11:57:44 erwan Exp $
 #
 #   test Math::Polynom->eval
 #
 
 use strict;
 use warnings;
-use Test::More tests => 24;
+use Test::More tests => 54;
 use lib "../lib/";
 
 use_ok('Math::Polynom');
@@ -16,7 +16,24 @@ sub test_eval {
     while (@tests) {
 	my $value = shift @tests;
 	my $want  = shift @tests;
+
 	is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
+
+	if ($want ne 'nan') {
+	    if ($want > 0) {	
+		is($p->xpos, $value, "xpos set to value");
+		is($p->xneg, undef,  "xneg stays undef");
+	    } elsif ($want < 0) {	
+		is($p->xpos, undef,  "xpos stays undef");
+		is($p->xneg, $value, "xneg set to value");
+	    } else {
+		is($p->xpos, undef,  "xpos stays undef");
+		is($p->xneg, undef,  "xneg stays undef");
+	    }
+	}
+
+	$p->xpos(undef);
+	$p->xneg(undef);
     }
 }
 

@@ -6,3 +6,8 @@ Revision history for Perl extension Math::Polynom
 0.02  2006-12-14
         - added the secant method
         - renamed solve() into newton_raphson()
+
+0.03  2006-12-15
+        - added Brent's method
+        - added xpos and xneg, automatically set by eval()
+        - improved tests
