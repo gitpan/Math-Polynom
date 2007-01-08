@@ -2,7 +2,7 @@
 #
 #   Math::Polynom - Operations on polynoms
 #
-#   $Id: Polynom.pm,v 1.7 2006/12/15 14:17:50 erwan Exp $
+#   $Id: Polynom.pm,v 1.9 2007/01/03 14:56:36 erwan Exp $
 #
 #   061025 erwan Started implementation
 #   061206 erwan Added the secant method
@@ -26,7 +26,7 @@ use constant ERROR_EMPTY_POLYNOM  => 3;
 use constant ERROR_DIVIDE_BY_ZERO => 4;
 use constant ERROR_WRONG_SIGNS    => 5;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 #----------------------------------------------------------------
 #
@@ -300,6 +300,7 @@ sub newton_raphson {
     my $max_depth = 100;
     
     $self->iterations(0);
+    $self->error(NO_ERROR);
 
     $new_guess = $hash{guess}     if (exists $hash{guess});
     $precision = $hash{precision} if (exists $hash{precision});
@@ -350,7 +351,8 @@ sub secant {
     my($p0,$p1);
 
     $self->iterations(0);
-    
+    $self->error(NO_ERROR);    
+
     $precision = $hash{precision} if (exists $hash{precision});
     $max_depth = $hash{max_depth} if (exists $hash{max_depth});
     $p0        = $hash{p0}        if (exists $hash{p0});
@@ -410,11 +412,6 @@ sub secant {
 #   brent - implement Brent's method to approximate the root of this polynom
 #
 
-sub debug {
-    my $msg = shift;
-    #print $msg;
-}
-
 sub brent {
     my($self,%hash) = @_;
     my $precision = 0.1;
@@ -424,6 +421,7 @@ sub brent {
     my($f_a,$f_b,$f_c,$f_s);
     
     $self->iterations(0);
+    $self->error(NO_ERROR);
 
     $precision = $hash{precision} if (exists $hash{precision});
     $max_depth = $hash{max_depth} if (exists $hash{max_depth});
@@ -465,7 +463,6 @@ sub brent {
 
     # eventually swap $a and $b (don't forget to even switch f(c))
     if (abs($f_a) < abs($f_b)) {
-	debug "swaping initial a and b\n";
 	($a,$b) = ($b,$a);
 	($f_a,$f_b) = ($f_b,$f_a);
     }
@@ -503,50 +500,24 @@ sub brent {
 	    $s = ($a*$f_b*$f_c)/(($f_a - $f_b)*($f_a - $f_c)) +
 		($b*$f_a*$f_c)/(($f_b - $f_a)*($f_b - $f_c)) +
 		($c*$f_a*$f_b)/(($f_c - $f_a)*($f_c - $f_b));
-	    
-	    debug "using quadratic interpolation: s = $s\n";
-
 	} else {
 	    # otherwise use the secant
 	    $s = $b - $f_b*($b - $a)/($f_b - $f_a);
-
-	    debug "using secant: s = $s\n";
 	}
 	
 	# now comes the main difference between Brent's method and Dekker's method: we want to use bisection when appropriate
-
-# 	debug "special case:".Dumper( 
-# 				      { s => $s,
-# 					a => $a,
-# 					b => $b,
-# 					c => $c,
-# 					d => $d,
-# 				    }
-# 				      )."\n".Dumper( 
-# 						     $mflag,
-# 						     abs($s-$b), abs($b-$c)/2,
-# 						     abs($s-$b), abs($c-$d)/2,
-# 						     ( ($s < (3*$a+$b)/4) && ($s > $b) ), 
-# 						     ( $mflag  && (abs($s-$b) >= (abs($b-$c)/2)) ),
-# 						#     ( !$mflag && (abs($s-$b) >= (abs($c-$d)/2)) ),
-# 						     );
-	
 	if ( ( ($s < (3*$a+$b)/4) && ($s > $b) ) ||
 	     ( $mflag  && (abs($s-$b) >= (abs($b-$c)/2)) ) ||
 	     ( !$mflag && (abs($s-$b) >= (abs($c-$d)/2)) ) ) {
 	    # in that case, use the bisection to get $s
 	    $s = ($a + $b)/2;
 	    $mflag = 1;
-
-	    debug "special case (bisection): s = $s\n";
 	} else {
 	    $mflag = 0;
 	}
 	
 	# calculate f($s)
 	$f_s = $self->eval($s);
-
-	debug "f(s)=$f_s\n";
 	
 	$self->_exception(ERROR_NAN,"polynom leads to an imaginary number on s=$s in brent()",\%hash) if ($f_s eq 'nan');
 	
@@ -557,11 +528,9 @@ sub brent {
 	if ($f_a*$f_s <= 0) {
 	    # important that b=s if f(s)=0 since the while loop checks f(b)
 	    # if f(a)=0, and f(b)!=0, then a and b will be swaped and we will therefore have f(b)=0
-	    debug "f(a)*f(s) < 0 => b=$s\n";
 	    $b = $s;
 	    $f_b = $f_s;
 	} else {
-	    debug "f(a)*f(s) >= 0 => a=$s\n";
 	    $a = $s;
 	    $f_a = $f_s;
 	}
@@ -569,15 +538,11 @@ sub brent {
 	# eventually swap $a and $b
 	if (abs($f_a) < abs($f_b)) {
 	    # in the special case when 
-	    debug "swaping a and b since f(a)=$f_a and f(b)=$f_b\n";
 	    ($a,$b) = ($b,$a);
 	    ($f_a,$f_b) = ($f_b,$f_a);
 	}
 
 	$self->iterations($self->iterations + 1);
-
-	debug "iter ".$self->iterations.":   a=$a     b=$b     (c=$c    d=$d)\n";
-	debug "      "." f(a)=$f_a  f(b)=$b    \n\n";
     }
     
     return $b;
@@ -891,7 +856,7 @@ See Math::Calculus::NewtonRaphson, Math::Polynomial, Math::Function::Roots.
 
 =head1 VERSION
 
-$Id: Polynom.pm,v 1.7 2006/12/15 14:17:50 erwan Exp $
+$Id: Polynom.pm,v 1.9 2007/01/03 14:56:36 erwan Exp $
 
 =head1 THANKS
 

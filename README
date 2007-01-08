@@ -19,7 +19,9 @@ To install this module type the following:
 
 DEPENDENCIES
 
-This module has no dependencies.
+This module depends on the following modules:
+
+   accessors
 
 AUTHOR
 

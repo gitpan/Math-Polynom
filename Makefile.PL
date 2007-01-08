@@ -6,6 +6,10 @@ WriteMakefile(
     NAME              => 'Math::Polynom',
     VERSION_FROM      => 'lib/Math/Polynom.pm', # finds $VERSION
     PREREQ_PM         => {
+	accessors => '0',
+	constant  => '0',
+	Data::Dumper => '2.10',
+        Carp => '0',
     },
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/Math/Polynom.pm', # retrieve abstract from module

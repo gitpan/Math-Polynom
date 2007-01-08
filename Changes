@@ -11,3 +11,7 @@ Revision history for Perl extension Math::Polynom
         - added Brent's method
         - added xpos and xneg, automatically set by eval()
         - improved tests
+
+0.04  2007-01-08
+        - fix dependency in makefile
+
