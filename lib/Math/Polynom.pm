@@ -2,11 +2,12 @@
 #
 #   Math::Polynom - Operations on polynoms
 #
-#   $Id: Polynom.pm,v 1.9 2007/01/03 14:56:36 erwan Exp $
+#   $Id: Polynom.pm,v 1.10 2007/01/12 09:23:28 erwan Exp $
 #
 #   061025 erwan Started implementation
 #   061206 erwan Added the secant method
 #   061214 erwan Added Brent's method
+#   070112 erwan Fixed bug in identification of nan scalars
 #
 
 package Math::Polynom;
@@ -26,7 +27,7 @@ use constant ERROR_EMPTY_POLYNOM  => 3;
 use constant ERROR_DIVIDE_BY_ZERO => 4;
 use constant ERROR_WRONG_SIGNS    => 5;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 #----------------------------------------------------------------
 #
@@ -71,6 +72,17 @@ sub _is_number {
     return 0 if (!defined $n);
     return 0 if (ref $n ne '');
     return $n =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
+}
+
+#----------------------------------------------------------------
+#
+#   _is_nan - return true if the argument is not a real number
+#
+
+sub _is_nan {
+    return 1 if (!defined $_[0]);
+    return 1 if ("$_[0]" =~ /^nan$/i);
+    return 0;
 }
 
 #----------------------------------------------------------------
@@ -179,7 +191,7 @@ sub eval {
 	$r += $coef*($x**$power);
     }
 
-    if ($r ne 'nan') {
+    if (!_is_nan($r)) {
 	if (!defined $self->xpos && $r > 0) {
 	    $self->xpos($x);
 	} elsif (!defined $self->xneg && $r < 0) {
@@ -333,7 +345,7 @@ sub newton_raphson {
 	    if ($self->iterations > $max_depth);
 	
 	$self->_exception(ERROR_NAN,"new guess is not a real number in newton_raphson().",\%hash)
-	    if ($new_guess eq 'nan');
+	    if (_is_nan($new_guess));
     }
     
     return $new_guess;
@@ -377,10 +389,13 @@ sub secant {
     my $q1 = $self->eval($p1);
     my $p;
 
+    $self->_exception(ERROR_NAN,"q0 or q1 are not a real number in first eval in secant()",\%hash) 
+	if (_is_nan($q0) || _is_nan($q1));
+
     return $p0 if ($q0 == 0);
     return $p1 if ($q1 == 0);
 
-    for (my $depth = 0; $depth <= $max_depth; $depth++) {
+    for (my $depth = 1; $depth <= $max_depth; $depth++) {
 
 	$self->iterations($depth);
 
@@ -390,16 +405,17 @@ sub secant {
 	$p = ($q1 * $p0 - $p1 * $q0) / ($q1 - $q0);
 
 	$self->_exception(ERROR_NAN,"p is not a real number in secant()",\%hash)
-	    if ($p eq 'nan');
+	    if (_is_nan($p));
 
 	$p0 = $p1;
 	$q0 = $q1;
 	$q1 = $self->eval($p);
 
-	$self->_exception(ERROR_NAN,"q1 is not a real number in secant()",\%hash)
-	    if ($q1 eq 'nan');
+	$self->_exception(ERROR_NAN,"q1 is not a real number in secant()",\%hash) 
+	    if (_is_nan($q1));
 
-	return $p if ($q1 == 0 || abs($p - $p1) <= $precision);
+	return $p 
+	    if ($q1 == 0 || abs($p - $p1) <= $precision);
 
 	$p1 = $p;
     }
@@ -450,7 +466,7 @@ sub brent {
     
     # if the polynom evaluates to a complex number on $a or $b (ex: square root, when $a = -1)
     $self->_exception(ERROR_NAN,"polynom is not defined on interval [a=$a, b=$b] in brent()",\%hash)
-	if ($f_a eq 'nan' || $f_b eq 'nan');
+	if (_is_nan($f_a) || _is_nan($f_b));
     
     # did we hit the root by chance?
     return $a if ($f_a == 0);
@@ -485,9 +501,9 @@ sub brent {
 	    $f_b = $self->eval($b);
 	    $f_c = $self->eval($c);
 
-	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on a=$a in brent()",\%hash) if ($f_a eq 'nan');
-	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on b=$b in brent()",\%hash) if ($f_b eq 'nan');
-	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on c=$c in brent()",\%hash) if ($f_c eq 'nan');
+	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on a=$a in brent()",\%hash) if (_is_nan($f_a));
+	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on b=$b in brent()",\%hash) if (_is_nan($f_b));
+	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on c=$c in brent()",\%hash) if (_is_nan($f_c));
 	}
 
 	# calculate the next root candidate
@@ -519,7 +535,7 @@ sub brent {
 	# calculate f($s)
 	$f_s = $self->eval($s);
 	
-	$self->_exception(ERROR_NAN,"polynom leads to an imaginary number on s=$s in brent()",\%hash) if ($f_s eq 'nan');
+	$self->_exception(ERROR_NAN,"polynom leads to an imaginary number on s=$s in brent()",\%hash) if (_is_nan($f_s));
 	
 	$d = $c;
 	$c = $b;
@@ -856,7 +872,7 @@ See Math::Calculus::NewtonRaphson, Math::Polynomial, Math::Function::Roots.
 
 =head1 VERSION
 
-$Id: Polynom.pm,v 1.9 2007/01/03 14:56:36 erwan Exp $
+$Id: Polynom.pm,v 1.10 2007/01/12 09:23:28 erwan Exp $
 
 =head1 THANKS
 

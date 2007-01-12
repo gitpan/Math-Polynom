@@ -15,3 +15,5 @@ Revision history for Perl extension Math::Polynom
 0.04  2007-01-08
         - fix dependency in makefile
 
+0.05  2007-01-12
+        - fix a bug in nan identification
