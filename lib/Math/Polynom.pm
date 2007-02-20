@@ -2,12 +2,13 @@
 #
 #   Math::Polynom - Operations on polynoms
 #
-#   $Id: Polynom.pm,v 1.10 2007/01/12 09:23:28 erwan Exp $
+#   $Id: Polynom.pm,v 1.11 2007/02/20 14:14:56 erwan Exp $
 #
 #   061025 erwan Started implementation
 #   061206 erwan Added the secant method
 #   061214 erwan Added Brent's method
 #   070112 erwan Fixed bug in identification of nan scalars
+#   070220 erwan Updated POD to warn for convergence toward non roots
 #
 
 package Math::Polynom;
@@ -26,12 +27,13 @@ use constant ERROR_MAX_DEPTH      => 2;
 use constant ERROR_EMPTY_POLYNOM  => 3;
 use constant ERROR_DIVIDE_BY_ZERO => 4;
 use constant ERROR_WRONG_SIGNS    => 5;
+use constant ERROR_NOT_A_ROOT     => 6;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 #----------------------------------------------------------------
 #
-#   _add_monom - add a monom to a polynom, ie a $coef**$power
+#   _add_monom - add a monom to a polynomial, ie a $coef**$power
 #
 
 sub _add_monom {
@@ -87,6 +89,16 @@ sub _is_nan {
 
 #----------------------------------------------------------------
 #
+#   _is_root - return true if the polynomial evaluates to something close enough to 0 on the root
+#
+
+sub _is_root {
+    my ($self,$value) = @_;
+    return (abs($self->eval($value)) < 1);
+}
+
+#----------------------------------------------------------------
+#
 #   _error - die nicely
 #
 
@@ -96,7 +108,7 @@ sub _error {
 }
 
 sub _exception {
-    my($self,$code,$msg,$args) = @_;
+    my ($self,$code,$msg,$args) = @_;
 
     $msg = "ERROR: $msg\nwith polynom:\n".$self->stringify."\n";
     if (defined $args) {
@@ -120,7 +132,7 @@ sub _exception {
 
 #----------------------------------------------------------------
 #
-#   new - construct a new polynom
+#   new - construct a new polynomial
 #
 
 sub new {
@@ -152,7 +164,7 @@ sub clone {
 
 #----------------------------------------------------------------
 #
-#   stringify - return current polynom as a string
+#   stringify - return current polynomial as a string
 #
 
 sub stringify {
@@ -162,7 +174,7 @@ sub stringify {
 
 #----------------------------------------------------------------
 #
-#   derivate - return the derivate 
+#   derivate - return the polynomial's derivate 
 #
 
 sub derivate {
@@ -176,7 +188,7 @@ sub derivate {
 
 #----------------------------------------------------------------
 #
-#   eval - evaluate the polynom on a given value, return result
+#   eval - evaluate the polynomial on a given value, return result
 #
 
 sub eval {
@@ -204,7 +216,7 @@ sub eval {
 
 #----------------------------------------------------------------
 #
-#   add - add a polynom/number to current polynom
+#   add - add a polynomial/number to current polynomial
 #
 
 sub add {
@@ -213,7 +225,7 @@ sub add {
     _error("add() got wrong number of arguments") if (scalar @_ != 2);
     _error("add() got undefined argument")        if (!defined $p);
 
-    # adding 2 polynoms
+    # adding 2 polynomials
     if (ref $p eq __PACKAGE__) {
 	my $result = $self->clone;
 	while (my($power,$coef) = each %{$p->{polynom}}) {
@@ -222,7 +234,7 @@ sub add {
 	return $result->_clean;
     }
 
-    # adding a constant to a polynom    
+    # adding a constant to a polynomial
     _error("add() got non numeric argument") if (!_is_number($p));
 
     return $self->clone->_add_monom($p,0)->_clean;
@@ -230,7 +242,7 @@ sub add {
 
 #----------------------------------------------------------------
 #
-#   minus - substract a polynom/number to current polynom
+#   minus - substract a polynomial/number to current polynomial
 #
 
 sub minus {
@@ -250,7 +262,7 @@ sub minus {
 
 #----------------------------------------------------------------
 #
-#   negate - negate current polynom
+#   negate - negate current polynomial
 #
 
 sub negate {
@@ -260,7 +272,7 @@ sub negate {
 
 #----------------------------------------------------------------
 #
-#   multiply - multiply current polynom with a polynom/number
+#   multiply - multiply current polynomial with a polynomial/number
 #
 
 sub multiply {
@@ -286,7 +298,7 @@ sub multiply {
 
 #----------------------------------------------------------------
 #
-#   divide - divide the current polynom with a float
+#   divide - divide the current polynomial with a float
 #
 
 sub divide {
@@ -302,7 +314,7 @@ sub divide {
 
 #----------------------------------------------------------------
 #
-#   newton_raphson - attempt to find a polynom's root with Newton Raphson
+#   newton_raphson - attempt to find a polynomial's root with Newton Raphson
 #
 
 sub newton_raphson {
@@ -347,13 +359,17 @@ sub newton_raphson {
 	$self->_exception(ERROR_NAN,"new guess is not a real number in newton_raphson().",\%hash)
 	    if (_is_nan($new_guess));
     }
+
+    if (!$self->_is_root($new_guess)) {
+	$self->_exception(ERROR_NOT_A_ROOT,"newton_raphson() converges toward $new_guess but that doesn't appear to be a root.",\%hash);
+    }
     
     return $new_guess;
 }
 
 #----------------------------------------------------------------
 #
-#   secant - implement the Secant algorithm to approximate the root of this polynom
+#   secant - implement the Secant algorithm to approximate the root of this polynomial
 #
 
 sub secant {
@@ -380,7 +396,7 @@ sub secant {
     _error("secant() got non numeric p1")           if (!_is_number($p1));    
     _error("secant() got same value for p0 and p1") if ($p0 == $p1);
 
-    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom",\%hash)
+    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynomial",\%hash)
 	if (scalar keys %{$self->{polynom}} == 0);
 
     # NOTE: this code is almost a copy/paste from Math::Function::Roots, I just added exception handling
@@ -414,8 +430,12 @@ sub secant {
 	$self->_exception(ERROR_NAN,"q1 is not a real number in secant()",\%hash) 
 	    if (_is_nan($q1));
 
-	return $p 
-	    if ($q1 == 0 || abs($p - $p1) <= $precision);
+	if ($q1 == 0 || abs($p - $p1) <= $precision) {
+	    if (!$self->_is_root($p)) {
+		$self->_exception(ERROR_NOT_A_ROOT,"secant() converges toward $p but that doesn't appear to be a root.",\%hash);
+	    }
+	    return $p;		
+	}
 
 	$p1 = $p;
     }
@@ -425,7 +445,7 @@ sub secant {
 
 #----------------------------------------------------------------
 #
-#   brent - implement Brent's method to approximate the root of this polynom
+#   brent - implement Brent's method to approximate the root of this polynomial
 #
 
 sub brent {
@@ -454,7 +474,7 @@ sub brent {
     _error("brent() got non numeric b")            if (!_is_number($b));    
     _error("brent() got same value for a and b")   if ($a == $b);
 
-    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom in brent()",\%hash)
+    $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynomial in brent()",\%hash)
 	if (scalar keys %{$self->{polynom}} == 0);
     
     # The following is an implementation of Brent's method as described on wikipedia
@@ -465,7 +485,7 @@ sub brent {
     $f_b = $self->eval($b);
     
     # if the polynom evaluates to a complex number on $a or $b (ex: square root, when $a = -1)
-    $self->_exception(ERROR_NAN,"polynom is not defined on interval [a=$a, b=$b] in brent()",\%hash)
+    $self->_exception(ERROR_NAN,"polynomial is not defined on interval [a=$a, b=$b] in brent()",\%hash)
 	if (_is_nan($f_a) || _is_nan($f_b));
     
     # did we hit the root by chance?
@@ -474,7 +494,7 @@ sub brent {
 
     # $a and $b should be chosen so that poly($a) and poly($b) have opposite signs. 
     # It is a prerequisite for the bisection part of Brent's method to work
-    $self->_exception(ERROR_WRONG_SIGNS,"polynom does not have opposite signs at a=$a and b=$b in brent()",\%hash)
+    $self->_exception(ERROR_WRONG_SIGNS,"polynomial does not have opposite signs at a=$a and b=$b in brent()",\%hash)
 	if ($f_a*$f_b > 0);
 
     # eventually swap $a and $b (don't forget to even switch f(c))
@@ -501,15 +521,15 @@ sub brent {
 	    $f_b = $self->eval($b);
 	    $f_c = $self->eval($c);
 
-	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on a=$a in brent()",\%hash) if (_is_nan($f_a));
-	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on b=$b in brent()",\%hash) if (_is_nan($f_b));
-	    $self->_exception(ERROR_NAN,"polynom leads to an imaginary number on c=$c in brent()",\%hash) if (_is_nan($f_c));
+	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on a=$a in brent()",\%hash) if (_is_nan($f_a));
+	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on b=$b in brent()",\%hash) if (_is_nan($f_b));
+	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on c=$c in brent()",\%hash) if (_is_nan($f_c));
 	}
 
 	# calculate the next root candidate
 	if ($f_a == $f_b) {
 	    # we should not be able to get $f_b == $f_a since it's a prerequisite of the method. that would be a bug
-	    _error("BUG: got same values for polynom at a=$a and b=$b:\n".$self->stringify);
+	    _error("BUG: got same values for polynomial at a=$a and b=$b:\n".$self->stringify);
 
 	} elsif ( ($f_a != $f_c) && ($f_b != $f_c) ) {
 	    # use quadratic interpolation
@@ -535,7 +555,7 @@ sub brent {
 	# calculate f($s)
 	$f_s = $self->eval($s);
 	
-	$self->_exception(ERROR_NAN,"polynom leads to an imaginary number on s=$s in brent()",\%hash) if (_is_nan($f_s));
+	$self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on s=$s in brent()",\%hash) if (_is_nan($f_s));
 	
 	$d = $c;
 	$c = $b;
@@ -560,6 +580,10 @@ sub brent {
 
 	$self->iterations($self->iterations + 1);
     }
+
+    if (!$self->_is_root($b)) {
+	$self->_exception(ERROR_NOT_A_ROOT,"brent() converges toward $b but that doesn't appear to be a root.",\%hash);
+    }
     
     return $b;
 }
@@ -570,13 +594,13 @@ __END__
 
 =head1 NAME
 
-Math::Polynom - Operations on polynoms
+Math::Polynom - Operations on polynomials
 
 =head1 SYNOPSIS
 
     use Math::Polynom;
 
-To create the polynom 'x^3 + 4*x^2 + 1', write:
+To create the polynomial 'x^3 + 4*x^2 + 1', write:
 
     my $p1 = Math::Polynom->new(3 => 1, 2 => 4, 0 => 1);
 
@@ -586,26 +610,26 @@ To create '3.5*x^4.2 + 1.78*x^0.9':
 
 Common operations:
 
-    my $p3 = $p1->multiply($p2); # multiply 2 polynoms
-    my $p3 = $p1->multiply(4.5); # multiply a polynom with a constant
+    my $p3 = $p1->multiply($p2); # multiply 2 polynomials
+    my $p3 = $p1->multiply(4.5); # multiply a polynomial with a constant
 
-    my $p3 = $p1->add($p2);      # add 2 polynoms
-    my $p3 = $p1->add(3.6);      # add a constant to a polynom
+    my $p3 = $p1->add($p2);      # add 2 polynomials
+    my $p3 = $p1->add(3.6);      # add a constant to a polynomial
     
-    my $p3 = $p1->minus($p2);    # substract 2 polynoms
-    my $p3 = $p1->minus(1.5);    # substract a constant to a polynom
+    my $p3 = $p1->minus($p2);    # substract 2 polynomials
+    my $p3 = $p1->minus(1.5);    # substract a constant to a polynomial
 
-    my $p3 = $p1->negate();      # negate a polynom
+    my $p3 = $p1->negate();      # negate a polynomial
 
-    my $p3 = $p1->divide(3.2);   # divide a polynom by a constant
+    my $p3 = $p1->divide(3.2);   # divide a polynomial by a constant
 
-    my $v = $p1->eval(1.35);     # evaluate the polynom on a given value
+    my $v = $p1->eval(1.35);     # evaluate the polynomial on a given value
 
-    my $p3 = $p1->derivate();    # return the derivate of a polynom
+    my $p3 = $p1->derivate();    # return the derivate of a polynomial
 
-    print $p1->stringify."\n";   # stringify polynom
+    print $p1->stringify."\n";   # stringify polynomial
 
-To try to find a root to a polynom using the Newton Raphson method:
+To try to find a root to a polynomial using the Newton Raphson method:
 
     my $r;
     eval { $r = $p1->newton_raphson(guess => 2, precision => 0.001); };
@@ -627,23 +651,23 @@ Same with the secant method:
 
 =head1 DESCRIPTION
 
-What! Yet another module to manipulate polynoms!!
+What! Yet another module to manipulate polynomials!!
 No, don't worry, there is a good reason for this one ;)
 
 I needed (for my work at a large financial institution) a robust way to compute the internal rate of return (IRR)
 of various cashflows.
-An IRR is typically obtained by solving a usually ughly looking polynom of one variable with up to hundreds of 
-coefficients and non integer powers (ex: powers with decimals). I also needed thorough fault handling.
-Other CPAN modules providing operations on polynoms did not support those requirements. 
+An IRR is typically obtained by solving a usually ughly looking polynomial of one variable with up to hundreds of 
+coefficients and non integer powers (ex: powers with decimals). I also needed thorough exception handling.
+Other CPAN modules providing operations on polynomials did not support those requirements. 
 
-If what you need is to manipulate simple polynoms with integer powers, without risks of failures,
-check out Math::Polynomial since it provides a more complete api than this one.
+If what you need is to manipulate simple polynomials with integer powers, without concern for failures,
+check out Math::Polynomial since it provides a more complete api than Math::Polynom.
 
-An instance of Math::Polynom is a representation of a 1-variable polynom.
-It supports a few basic operations specific to polynoms such as addition, substraction and multiplication. 
+An instance of Math::Polynom is a representation of a 1-variable polynomial.
+It supports a few basic operations specific to polynomials such as addition, substraction and multiplication. 
 
 Math::Polynom also implements various root finding algorithms (which is kind of 
-the main purpose of this module) such as the Newton Raphson and Secant methods.
+the main purpose of this module) such as the Newton Raphson, Secant and Brent methods.
 
 
 =head1 API
@@ -652,81 +676,83 @@ the main purpose of this module) such as the Newton Raphson and Secant methods.
 
 =item $p1 = B<new(%power_coef)>
 
-Create a new Math::Polynom. Each key in the hash I<%power_coef> is a power
+Create a new Math::Polynom. Each key in the hash C<%power_coef> is a power
 and each value the corresponding coefficient.
 
 =item $p3 = $p1->B<clone()>
 
-Return a clone of the current polynom.
+Return a clone of the current polynomial.
 
 =item $p3 = $p1->B<add($p2)>
 
-Return a new polynom that is the sum of the current polynom with the polynom I<$p2>.
-If I<$p2> is a scalar, we add it to the current polynom as a numeric constant.
+Return a new polynomial that is the sum of the current polynomial with the polynomial C<$p2>.
+If C<$p2> is a scalar, we add it to the current polynomial as a numeric constant.
 
 Croaks if provided with weird arguments.
 
 =item $p3 = $p1->B<minus($p2)>
 
-Return a new polynom that is the current polynom minus the polynom I<$p2>.
-If I<$p2> is a scalar, we substract it from the current polynom as a numeric constant.
+Return a new polynomial that is the current polynomial minus the polynomial C<$p2>.
+If C<$p2> is a scalar, we substract it from the current polynomial as a numeric constant.
 
 Croaks if provided with weird arguments.
 
 =item $p3 = $p1->B<multiply($p2)>
 
-Return a new polynom that is the current polynom multiplied by I<$p2>.
-If I<$p2> is a scalar, we multiply all the coefficients in the current polynom with it.
+Return a new polynomial that is the current polynomial multiplied by C<$p2>.
+If C<$p2> is a scalar, we multiply all the coefficients in the current polynomial with it.
 
 Croaks if provided with weird arguments.
 
 =item $p3 = $p1->B<negate()>
 
-Return a new polynom in which all coefficients have the negated sign of those in the current polynom.
+Return a new polynomial in which all coefficients have the negated sign of those in the current polynomial.
 
 =item $p3 = $p1->B<divide($float)>
 
-Return a new polynom in which all coefficients are equal to those of the current polynom divided by the number I<$float>.
+Return a new polynomial in which all coefficients are equal to those of the current polynomial divided by the number C<$float>.
 
 Croaks if provided with weird arguments.
 
 =item $p3 = $p1->B<derivate()>
 
-Return a new polynom that is the derivate of the current polynom.
+Return a new polynomial that is the derivate of the current polynomial.
 
 =item $v = $p1->B<eval($float)>
 
-Evaluate the current polynom on the value I<$float>.
+Evaluate the current polynomial on the value C<$float>.
 
-If you call I<eval> with a negative value that would yield a complex (non real) result,
-I<eval> will no complain but return the string 'nan'.
+If you call C<eval> with a negative value that would yield a complex (non real) result,
+C<eval> will no complain but return the string 'nan'.
 
 Croaks if provided with weird arguments.
 
 =item $s = $p1->B<stringify()>
 
-Return a basic string representation of the current polynom. For exemple '3*x^5 + 2*x^2 + 1*x^0'.
+Return a basic string representation of the current polynomial. For exemple '3*x^5 + 2*x^2 + 1*x^0'.
 
 =item $r = $p1->B<< newton_raphson(guess => $float1, precision => $float2, max_depth => $integer) >>
 
-Uses the Newton Raphson algorithm to approximate a root for this polynom. Beware that this require
-your polynom AND its derivate to be continuous.
-Starts the search with I<guess> and returns the root when the difference between two
-consecutive estimations of the root is smaller than I<precision>. Make at most I<max_depth>
+Uses the Newton Raphson algorithm to approximate a root for this polynomial. Beware that this require
+your polynomial AND its derivate to be continuous.
+Starts the search with C<guess> and returns the root when the difference between two
+consecutive estimations of the root is smaller than C<precision>. Make at most C<max_depth>
 iterations.
 
-If I<guess> is omitted, 1 is used as default.
-If I<precision> is omitted, 0.1 is used as default.
-If I<max_depth> is omitted, 100 is used as default.
+If C<guess> is omitted, 1 is used as default.
+If C<precision> is omitted, 0.1 is used as default.
+If C<max_depth> is omitted, 100 is used as default.
 
-I<newton_raphson> will fail (croak) in a few cases: If the successive approximations of the root 
-still differ with more than I<precision> after I<max_depth> iterations, I<newton_raphson> dies,
+C<newton_raphson> will fail (croak) in a few cases: If the successive approximations of the root 
+still differ with more than C<precision> after C<max_depth> iterations, C<newton_raphson> dies,
 and C<< $p1->error >> is set to the code Math::Polynom::ERROR_MAX_DEPTH. If an approximation 
-is not a real number, I<newton_raphson> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
-If the polynom is empty, I<newton_raphson> dies and C<< $p1->error >> is set to the code 
-Math::Polynom::ERROR_EMPTY_POLYNOM.
+is not a real number, C<newton_raphson> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
+If the polynomial is empty, C<newton_raphson> dies and C<< $p1->error >> is set to the code 
+Math::Polynom::ERROR_EMPTY_POLYNOM. If C<newton_raphson> converges toward a number but this number is
+not a root (ie the polynomial evaluates to a large number on it), C<newton_raphson> dies and the
+error attribute is set to Math::Polynom::ERROR_NOT_A_ROOT.
 
-I<newton_raphson> will also croak if provided with weird arguments.
+C<newton_raphson> will also croak if provided with weird arguments.
 
 Exemple:
 
@@ -737,7 +763,7 @@ Exemple:
                 # do something wise
             } elsif ($p->error == Math::Polynom::ERROR_MAX_DEPTH) {
                 # do something else
-            } else { # empty polynom
+            } else { # empty polynomial
                 die "BUG!";
             }
         } else {
@@ -748,81 +774,86 @@ Exemple:
 
 =item $r = $p1->B<< secant(p0 => $float1, p1 => $float2, precision => $float3, max_depth => $integer) >>
 
-Use the secant method to approximate a root for this polynom. I<p0> and I<p1> are the two start values
-to initiate the search, I<precision> and I<max_depth> have the same meaning as for I<newton_raphson>.
+Use the secant method to approximate a root for this polynomial. C<p0> and C<p1> are the two start values
+to initiate the search, C<precision> and C<max_depth> have the same meaning as for C<newton_raphson>.
 
-The polynom should be continuous. Therefore, the secant method might fail on polynomial having monoms
+The polynomial should be continuous. Therefore, the secant method might fail on polynomialial having monoms
 with degrees lesser than 1.
 
-If I<precision> is omitted, 0.1 is used as default.
-If I<max_depth> is omitted, 100 is used as default.
+If C<precision> is omitted, 0.1 is used as default.
+If C<max_depth> is omitted, 100 is used as default.
 
-I<secant> will fail (croak) in a few cases: If the successive approximations of the root 
-still differ with more than I<precision> after I<max_depth> iterations, I<secant> dies,
+C<secant> will fail (croak) in a few cases: If the successive approximations of the root 
+still differ with more than C<precision> after C<max_depth> iterations, C<secant> dies,
 and C<< $p1->error >> is set to the code Math::Polynom::ERROR_MAX_DEPTH. If an approximation 
-is not a real number, I<secant> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
-If the polynom is empty, I<secant> dies and C<< $p1->error >> is set to the code 
-Math::Polynom::ERROR_EMPTY_POLYNOM.
+is not a real number, C<secant> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
+If the polynomial is empty, C<secant> dies and C<< $p1->error >> is set to the code 
+Math::Polynom::ERROR_EMPTY_POLYNOM. If C<secant> converges toward a number but this number is
+not a root (ie the polynomial evaluates to a large number on it), C<secant> dies and the
+error attribute is set to Math::Polynom::ERROR_NOT_A_ROOT.
 
-I<secant> will also croak if provided with weird arguments.
+C<secant> will also croak if provided with weird arguments.
 
 
 =item $r = $p1->B<< brent(a => $float1, b => $float2, precision => $float3, max_depth => $integer) >>
 
-Use Brent's method to approximate a root for this polynom. I<a> and I<b> are two floats such that 
-I<< p1->eval(a) >> and I<< p1->eval(b) >> have opposite signs. 
-I<precision> and I<max_depth> have the same meaning as for I<newton_raphson>.
+Use Brent's method to approximate a root for this polynomial. C<a> and C<b> are two floats such that 
+C<< p1->eval(a) >> and C<< p1->eval(b) >> have opposite signs. 
+C<precision> and C<max_depth> have the same meaning as for C<newton_raphson>.
 
-The polynom should be continuous on the interval [a,b].
+The polynomial should be continuous on the interval [a,b].
 
 Brent's method is considered to be one of the most robust root finding methods. It alternatively
 uses the secant, inverse quadratic interpolation and bisection to find the next root candidate
 at each iteration, making it a robust but quite fast converging method.
 
 The difficulty with Brent's method consists in finding the start values a and b for which
-the polynome evaluates to opposite signs. This is somewhat simplified in Math::Polynom
-by the fact that I<eval()> automatically sets I<xpos()> and I<xneg()> when possible.
+the polynomial evaluates to opposite signs. This is somewhat simplified in Math::Polynom
+by the fact that C<eval()> automatically sets C<xpos()> and C<xneg()> when possible.
 
-If I<precision> is omitted, 0.1 is used as default.
-If I<max_depth> is omitted, 100 is used as default.
+If C<precision> is omitted, 0.1 is used as default.
+If C<max_depth> is omitted, 100 is used as default.
 
-I<brent> will fail (croak) in a few cases: If the successive approximations of the root 
-still differ with more than I<precision> after I<max_depth> iterations, I<brent> dies,
+C<brent> will fail (croak) in a few cases: If the successive approximations of the root 
+still differ with more than C<precision> after C<max_depth> iterations, C<brent> dies,
 and C<< $p1->error >> is set to the code Math::Polynom::ERROR_MAX_DEPTH. If an approximation 
-is not a real number, I<brent> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
-If the polynom is empty, I<brent> dies and C<< $p1->error >> is set to the code 
+is not a real number, C<brent> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_NAN.
+If the polynomial is empty, C<brent> dies and C<< $p1->error >> is set to the code 
 Math::Polynom::ERROR_EMPTY_POLYNOM. If provided with a and b that does not lead to values
-having opposite signs, I<brent> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_WRONG_SIGNS.
+having opposite signs, C<brent> dies and C<< $p1->error >> is set to the code Math::Polynom::ERROR_WRONG_SIGNS.
+If C<brent> converges toward a number but this number is not a root (ie the polynomial evaluates 
+to a large number on it), C<brent> dies and the
+error attribute is set to Math::Polynom::ERROR_NOT_A_ROOT.
 
-I<brent> will also croak if provided with weird arguments.
+C<brent> will also croak if provided with weird arguments.
 
 
 =item $p1->B<error>, $p1->B<error_message>
 
 Respectively the error code and error message set by the last method that failed to run
-on this polynom. For exemple, if I<newton_raphson> died, you would access the code of the error
-with I<error()> and a message describing the context of the error in details with
-I<error_message>.
+on this polynomial. For exemple, if C<newton_raphson> died, you would access the code of the error
+with C<error()> and a message describing the context of the error in details with
+C<error_message>.
 
-If the polynom has no error, I<error> returns Math::polynom::NO_ERROR and 
-I<error_message> returns undef.
+If the polynomial has no error, C<error> returns Math::polynom::NO_ERROR and 
+C<error_message> returns undef.
 
 
 =item $p1->B<iterations>
 
-Return the number of iterations it took to find the polynom's root. Must be called
+Return the number of iterations it took to find the polynomial's root. Must be called
 after calling one of the root finding methods.
 
 
 =item $p1->B<xpos>, $p1->B<xneg>
 
-Each time I<eval> is called, it checks whether we know a value xpos for which the polynom
-evaluates to a positive value. If not and if the value provided to I<eval> lead to a positive
-result, this value is stored in I<xpos>. Same thing with I<xneg> and negative results.
+Each time C<eval> is called, it checks whether we know a value xpos for which the polynomial
+evaluates to a positive value. If not and if the value provided to C<eval> lead to a positive
+result, this value is stored in C<xpos>. Same thing with C<xneg> and negative results.
 
 This comes in handy when you wish to try the Brent method after failing with the secant
 or Newton methods. If you are lucky, those failed attempts will have identified both a
-xpos and xneg that you can directly use as a and b in I<brent()>.
+xpos and xneg that you can directly use as a and b in C<brent()>.
 
 
 =back
@@ -830,26 +861,28 @@ xpos and xneg that you can directly use as a and b in I<brent()>.
 
 =head1 ERROR HANDLING
 
-Each method of a polynom may croak if provided with wrong arguments. Methods that take arguments
+Each method of a polynomial may croak if provided with wrong arguments. Methods that take arguments
 do thorough controls on whether the arguments are of the proper type and in the right quantity.
-If the error is internal, the method will croak after setting the polynom's error and error_message
+If the error is internal, the method will croak after setting the polynomial's error and error_message
 to specific values.
 
-Math::Polynom defines a few error codes, returned by the method I<error>:
+Math::Polynom defines a few error codes, returned by the method C<error>:
 
 =over 4
 
-=item B<Math::polynom::NO_ERROR> is the default return value of method I<error>, and is always set to 0.
+=item B<Math::polynom::NO_ERROR> is the default return value of method C<error>, and is always set to 0.
 
-=item B<Math::polynom::ERROR_NAN> means the function jammed on a complex number. Most likely because your polynom is not continuous on the search interval.
+=item B<Math::polynom::ERROR_NAN> means the function jammed on a complex number. Most likely because your polynomial is not continuous on the search interval.
 
 =item B<Math::polynom::ERROR_DIVIDE_BY_ZERO> means what it says.
 
 =item B<Math::polynom::ERROR_MAX_DEPTH> means the root finding algorithm failed to find a good enough root after the specified maximum number of iterations.
 
-=item B<Math::polynom::ERROR_EMPTY_POLYNOM> means you tried to perform an operation on an empty polynom (such as I<newton_raphson)>
+=item B<Math::polynom::ERROR_EMPTY_POLYNOM> means you tried to perform an operation on an empty polynomial (such as C<newton_raphson)>
 
-=item B<Math::polynom::ERROR_WRONG_SIGNS> means that the polynom evaluates to values having the same signs instead of opposite signs on the boundaries of the interval you provided to start the search of the root (ex: Brent's method)
+=item B<Math::polynom::ERROR_WRONG_SIGNS> means that the polynomial evaluates to values having the same signs instead of opposite signs on the boundaries of the interval you provided to start the search of the root (ex: Brent's method)
+
+=item B<Math::polynom::ERROR_NOT_A_ROOT> means the root finding method converged toward one value but this value appears not to be a root. A value is accepted as a root if the polynomial evaluates on it to a number between -1 and 1 (ie close enough to 0).
 
 =back
 
@@ -872,7 +905,7 @@ See Math::Calculus::NewtonRaphson, Math::Polynomial, Math::Function::Roots.
 
 =head1 VERSION
 
-$Id: Polynom.pm,v 1.10 2007/01/12 09:23:28 erwan Exp $
+$Id: Polynom.pm,v 1.11 2007/02/20 14:14:56 erwan Exp $
 
 =head1 THANKS
 
