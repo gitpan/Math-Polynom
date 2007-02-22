@@ -1,5 +1,5 @@
 #
-#   $Id: 15_test_brent.t,v 1.4 2006/12/15 14:17:23 erwan Exp $
+#   $Id: 15_test_brent.t,v 1.5 2007/02/22 08:27:02 erwan Exp $
 #
 #   test Math::Polynom->brent
 #
@@ -13,7 +13,7 @@ use Math::Polynom;
 
 sub alike {
     my($v1,$v2,$precision) = @_;
-    if ( abs(int($v1-$v2)) <= $precision) {
+    if ( abs($v1-$v2) <= $precision) {
 	return 1;
     }
     return 0;
@@ -89,7 +89,7 @@ test_brent($p5,{a => 0, b => 10},0.03125);
 test_brent(Math::Polynom->new(1 => 1),           {a => -10, b => 10},   0);    # x
 test_brent(Math::Polynom->new(2 => 1, 0 => -1),  {a => .5, b => 10},    1);    # x^2-1
 test_brent(Math::Polynom->new(2 => 1, 0 => -1),  {a => -.5, b => -10}, -1);    # x^2-1
-test_brent(Math::Polynom->new(.5 => 1, 0 => -1), {a => 0, b => 10},     0);    # x^.5 - 1
+test_brent(Math::Polynom->new(.5 => 1, 0 => -1), {a => 0, b => 10},     1);    # x^.5 - 1
 
 # sign check
 eval { $p1->brent(a => 0, b => 1); };

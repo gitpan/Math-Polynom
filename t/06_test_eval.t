@@ -1,5 +1,5 @@
 #
-#   $Id: 06_test_eval.t,v 1.5 2006/12/15 11:57:44 erwan Exp $
+#   $Id: 06_test_eval.t,v 1.6 2007/02/22 08:04:18 erwan Exp $
 #
 #   test Math::Polynom->eval
 #
@@ -17,7 +17,11 @@ sub test_eval {
 	my $value = shift @tests;
 	my $want  = shift @tests;
 
-	is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
+	if ($want eq 'nan') {
+	    ok($p->eval($value) =~ /^nan$/i,"eval($value) on [".$p->stringify."] is nan");
+	} else {
+	    is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
+	}
 
 	if ($want ne 'nan') {
 	    if ($want > 0) {	
