@@ -1,8 +1,14 @@
+#!/usr/local/bin/perl
+#################################################################
 #
-#   $Id: 02_test_new.t,v 1.6 2006/12/15 11:55:54 erwan Exp $
+#   $Id: 02_test_new.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
 #
-#   test Math::Polynom->new
-#
+#   @author       erwan lemonnier
+#   @description  test Math::Polynom->new
+#   @system       pluto
+#   @function     base
+#   @function     vf
+#   
 
 use strict;
 use warnings;

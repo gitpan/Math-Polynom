@@ -1,7 +1,13 @@
+#!/usr/local/bin/perl
+#################################################################
 #
-#   $Id: 20_test__is_nan.t,v 1.1 2007/01/12 09:16:40 erwan Exp $
+#   $Id: 20_test__is_nan.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
 #
-#   test _is_nan
+#   @author       erwan lemonnier
+#   @description  test Math::Polynom _is_nan
+#   @system       pluto
+#   @function     base
+#   @function     vf
 #
 
 use strict;

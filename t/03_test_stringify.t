@@ -1,7 +1,13 @@
+#!/usr/local/bin/perl
+#################################################################
 #
-#   $Id: 03_test_stringify.t,v 1.4 2006/12/14 10:01:09 erwan Exp $
+#   $Id: 03_test_stringify.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
 #
-#   test Math::Polynom->new
+#   @author       erwan lemonnier
+#   @description  test method stringify
+#   @system       pluto
+#   @function     base
+#   @function     vf
 #
 
 use strict;

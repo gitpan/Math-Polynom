@@ -1,7 +1,13 @@
+#!/usr/local/bin/perl
+#################################################################
 #
-#   $Id: 06_test_eval.t,v 1.6 2007/02/22 08:04:18 erwan Exp $
+#   $Id: 06_test_eval.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
 #
-#   test Math::Polynom->eval
+#   @author       erwan lemonnier
+#   @description  test method eval
+#   @system       pluto
+#   @function     base
+#   @function     vf
 #
 
 use strict;
@@ -17,11 +23,7 @@ sub test_eval {
 	my $value = shift @tests;
 	my $want  = shift @tests;
 
-	if ($want eq 'nan') {
-	    ok($p->eval($value) =~ /^nan$/i,"eval($value) on [".$p->stringify."] is nan");
-	} else {
-	    is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
-	}
+	is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
 
 	if ($want ne 'nan') {
 	    if ($want > 0) {	

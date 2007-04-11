@@ -1,7 +1,13 @@
+#!/usr/local/bin/perl
+#################################################################
 #
-#   $Id: 12_test_newton_raphson.t,v 1.2 2006/12/15 11:55:54 erwan Exp $
+#   $Id: 12_test_newton_raphson.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
 #
-#   test Math::Polynom->newton_raphson
+#   @author       erwan lemonnier
+#   @description  test method newton_raphson
+#   @system       pluto
+#   @function     base
+#   @function     vf
 #
 
 use strict;

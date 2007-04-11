@@ -5,6 +5,8 @@ Math::Polynom implements basic operations on polynomials
 and a couple of root finding methods.
 It is designed to be robust, fail-safe and able to
 handle polynomials with non integer positive powers.
+Math::Polynom is primarily intended as the calculation
+library for Finance::Math::IRR.
 
 See perldoc Math::Polynom for more information.
 
@@ -22,6 +24,7 @@ DEPENDENCIES
 This module depends on the following modules:
 
    accessors
+   constant
 
 AUTHOR
 
