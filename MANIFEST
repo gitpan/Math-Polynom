@@ -3,6 +3,7 @@ Makefile.PL
 MANIFEST
 README
 lib/Math/Polynom.pm
+examples/newton_raphson.pl
 META.yml                                 Module meta-data (added by MakeMaker)
 t/01_test_compile.t
 t/02_test_new.t

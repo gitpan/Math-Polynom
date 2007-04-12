@@ -32,3 +32,6 @@ Revision history for Perl extension Math::Polynom
 	- added $DEBUG output
         - updated META.yml to version 1.3 of the META.yml spec
         - added examples
+
+0.09  2007-04-12
+        - fixed MANIFEST
