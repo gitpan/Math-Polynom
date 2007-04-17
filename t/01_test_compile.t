@@ -1,7 +1,6 @@
-#!/usr/local/bin/perl
 #################################################################
 #
-#   $Id: 01_test_compile.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
+#   $Id: 01_test_compile.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
 #
 #   @author       erwan lemonnier
 #   @description  test that Math::Polynom compiles

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Math-Polynom
-version:             0.09
+version:             0.10
 abstract:            Operations on polynomials
 license:             ~
 generated_by:        ExtUtils::MakeMaker version 6.32

@@ -1,7 +1,6 @@
-#!/usr/local/bin/perl
 #################################################################
 #
-#   $Id: 20_test__is_nan.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
+#   $Id: 20_test__is_nan.t,v 1.3 2007/04/17 19:28:32 erwan_lemonnier Exp $
 #
 #   @author       erwan lemonnier
 #   @description  test Math::Polynom _is_nan

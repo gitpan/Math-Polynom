@@ -1,10 +1,11 @@
 Changes
+examples/newton_raphson.pl
+lib/Math/Polynom.pm
 Makefile.PL
 MANIFEST
+MANIFEST.SKIP
+META.yml			Module meta-data (added by MakeMaker)
 README
-lib/Math/Polynom.pm
-examples/newton_raphson.pl
-META.yml                                 Module meta-data (added by MakeMaker)
 t/01_test_compile.t
 t/02_test_new.t
 t/03_test_stringify.t

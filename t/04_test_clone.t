@@ -1,7 +1,6 @@
-#!/usr/local/bin/perl
 #################################################################
 #
-#   $Id: 04_test_clone.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
+#   $Id: 04_test_clone.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
 #
 #   @author       erwan lemonnier
 #   @description  test method clone

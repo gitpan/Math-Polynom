@@ -1,10 +1,9 @@
-#!/usr/local/bin/perl
 #################################################################
 #
-#   $Id: 06_test_eval.t,v 1.1 2007/04/11 08:52:34 erwan_lemonnier Exp $
+#   $Id: 06_test_eval.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
 #
 #   @author       erwan lemonnier
-#   @description  test method eval
+#   @description test method eval
 #   @system       pluto
 #   @function     base
 #   @function     vf
@@ -12,7 +11,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 54;
+use Test::More tests => 26;
 use lib "../lib/";
 
 use_ok('Math::Polynom');
@@ -25,7 +24,7 @@ sub test_eval {
 
 	is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
 
-	if ($want ne 'nan') {
+	if ($want =~ /^nan$/i) {
 	    if ($want > 0) {	
 		is($p->xpos, $value, "xpos set to value");
 		is($p->xneg, undef,  "xneg stays undef");
