@@ -1,6 +1,6 @@
 #################################################################
 #
-#   $Id: 06_test_eval.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
+#   $Id: 06_test_eval.t,v 1.4 2007/04/18 05:49:51 erwan_lemonnier Exp $
 #
 #   @author       erwan lemonnier
 #   @description test method eval
@@ -11,7 +11,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 26;
+use Test::More tests => 54;
 use lib "../lib/";
 
 use_ok('Math::Polynom');
@@ -24,7 +24,7 @@ sub test_eval {
 
 	is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
 
-	if ($want =~ /^nan$/i) {
+	if ($want !~ /^nan$/i) {
 	    if ($want > 0) {	
 		is($p->xpos, $value, "xpos set to value");
 		is($p->xneg, undef,  "xneg stays undef");
