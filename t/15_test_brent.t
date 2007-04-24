@@ -1,6 +1,6 @@
 #################################################################
 #
-#   $Id: 15_test_brent.t,v 1.4 2007/04/17 19:32:56 erwan_lemonnier Exp $
+#   $Id: 15_test_brent.t,v 1.5 2007/04/24 05:48:15 erwan_lemonnier Exp $
 #
 #   @author       erwan lemonnier
 #   @description  test method brent
@@ -17,8 +17,16 @@ use lib "../lib/";
 use Math::Polynom;
 
 sub alike {
-    my($v1,$v2,$precision) = @_;
-    if ( abs(int($v1-$v2)) <= $precision) {
+    my($v1,$v2,$precision,$sym) = @_;
+
+    # some polynomials are symetrical and can have 2 symetrical roots
+    if ($sym) {
+	$v1 = abs($v1);
+	$v2 = abs($v2);
+    }
+
+    # extending precision since hardcoded root is itself an estimation
+    if ( abs($v1-$v2) <= 2*$precision) {
 	return 1;
     }
     return 0;
@@ -27,8 +35,9 @@ sub alike {
 sub test_brent {
     my($p,$args,$want)=@_;
     my $precision = $args->{precision} || 0.1;
+    my $sym = $args->{sym} || 0;
     my $v = $p->brent(%$args);
-    ok(alike($v,$want,$precision), $p->stringify." ->brent(a => ".$args->{a}.", b => ".$args->{b}.", precision => $precision) = $want (got $v)");
+    ok(alike($v,$want,$precision,$sym), $p->stringify." ->brent(a => ".$args->{a}.", b => ".$args->{b}.", precision => $precision) = $want (got $v)");
 }
 
 # the exemple on wikipedia:
@@ -76,7 +85,7 @@ ok((defined $@ && $@ =~ /reached maximum number of iterations/),"brent() fails w
 ok($p7->error_message =~ /reached maximum number of iterations/,"\$p7->error_message looks good");
 is($p7->error,Math::Polynom::ERROR_MAX_DEPTH,"\$p7->error looks good");
 # but we still find the solution if enough depth
-test_brent($p7,{a => -100000000000000000, b => 999999999999999999999, max_depth => 150, precision => 0.01}, 0.58893);
+test_brent($p7,{a => -100000000000000000, b => 999999999999999999999, max_depth => 150, precision => 0.01,sym => 1}, 0.58893);
 
 # empty polynom error
 my $p4 = Math::Polynom->new();

@@ -2,7 +2,7 @@
 #
 #   Math::Polynom - Operations on polynoms
 #
-#   $Id: Polynom.pm,v 1.8 2007/04/18 05:58:49 erwan_lemonnier Exp $
+#   $Id: Polynom.pm,v 1.9 2007/04/24 05:48:15 erwan_lemonnier Exp $
 #
 #   061025 erwan Started implementation
 #   061206 erwan Added the secant method
@@ -32,7 +32,7 @@ use constant ERROR_DIVIDE_BY_ZERO => 4;
 use constant ERROR_WRONG_SIGNS    => 5;
 use constant ERROR_NOT_A_ROOT     => 6;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 our $DEBUG = 0;
 
 #----------------------------------------------------------------
@@ -938,7 +938,7 @@ See Math::Calculus::NewtonRaphson, Math::Polynomial, Math::Function::Roots.
 
 =head1 VERSION
 
-$Id: Polynom.pm,v 1.8 2007/04/18 05:58:49 erwan_lemonnier Exp $
+$Id: Polynom.pm,v 1.9 2007/04/24 05:48:15 erwan_lemonnier Exp $
 
 =head1 THANKS
 

@@ -40,3 +40,5 @@ Revision history for Perl extension Math::Polynom
         - fixed tests
         - added PPM information
 
+0.12  2007-04-24
+        - fixed test on macbook
