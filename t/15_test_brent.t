@@ -1,14 +1,3 @@
-#################################################################
-#
-#   $Id: 15_test_brent.t,v 1.5 2007/04/24 05:48:15 erwan_lemonnier Exp $
-#
-#   @author       erwan lemonnier
-#   @description  test method brent
-#   @system       pluto
-#   @function     base
-#   @function     vf
-#
-
 use strict;
 use warnings;
 use Test::More tests => 43;
@@ -74,7 +63,7 @@ ok((!defined $@ || $@ eq ''),"brent() does not fails on polynom 2 with negative 
 my $p3 = Math::Polynom->new(2 => 1, 1 => -2, 0 => 1); # x^2 -2*x +1
 test_brent($p3,{a => 0.5, b => 1},1);
 # problem: can't find an interval on which polynom is negative on one side and positive on the other, since always pos
-#test_brent($p3,{a => 0, b => -500},1); 
+#test_brent($p3,{a => 0, b => -500},1);
 #test_brent($p3,{a => 0, b => 99999},1);
 
 # TODO: handle calculation overflows...

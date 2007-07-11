@@ -1,18 +1,12 @@
-#################################################################
-#
-#   $Id: 06_test_eval.t,v 1.4 2007/04/18 05:49:51 erwan_lemonnier Exp $
-#
-#   @author       erwan lemonnier
-#   @description test method eval
-#   @system       pluto
-#   @function     base
-#   @function     vf
-#
-
 use strict;
 use warnings;
-use Test::More tests => 54;
+use Test::More;
 use lib "../lib/";
+
+eval "use Data::Float qw(float_is_nan)";
+plan skip_all => "Data::Float required for testing eval()" if $@;
+
+plan tests => 54;
 
 use_ok('Math::Polynom');
 
@@ -24,17 +18,15 @@ sub test_eval {
 
 	is($p->eval($value),$want,"eval($value) on [".$p->stringify."]");
 
-	if ($want !~ /^nan$/i) {
-	    if ($want > 0) {	
-		is($p->xpos, $value, "xpos set to value");
-		is($p->xneg, undef,  "xneg stays undef");
-	    } elsif ($want < 0) {	
-		is($p->xpos, undef,  "xpos stays undef");
-		is($p->xneg, $value, "xneg set to value");
-	    } else {
-		is($p->xpos, undef,  "xpos stays undef");
-		is($p->xneg, undef,  "xneg stays undef");
-	    }
+	if ($want > 0) {
+	    is($p->xpos, $value, "xpos set to value");
+	    is($p->xneg, undef,  "xneg stays undef");
+	} elsif ($want < 0) {
+	    is($p->xpos, undef,  "xpos stays undef");
+	    is($p->xneg, $value, "xneg set to value");
+	} else {
+	    is($p->xpos, undef,  "xpos stays undef");
+	    is($p->xneg, undef,  "xneg stays undef");
 	}
 
 	$p->xpos(undef);
@@ -70,10 +62,12 @@ test_eval($p,
 # a more complex one
 $p = Math::Polynom->new(2 => 3, .5 => 5.2);
 test_eval($p,
-	  -5 => 'nan', # should crash!
 	  4  =>  58.4,
 	  0 => 0,
 	  );
+
+my $v = $p->eval(-5);
+ok(float_is_nan($v),"got a nan on -5");
 
 # negative power
 $p = Math::Polynom->new(-1 => 10);

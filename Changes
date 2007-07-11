@@ -40,5 +40,12 @@ Revision history for Perl extension Math::Polynom
         - fixed tests
         - added PPM information
 
+0.11  2007-04-18
+        - fixed more tests
+
 0.12  2007-04-24
         - fixed test on macbook
+
+0.13  2007-07-11
+        - better support for nan (not a number) and number recognition
+        - tests pass on more platforms

@@ -1,14 +1,3 @@
-#################################################################
-#
-#   $Id: 08_test_minus.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
-#
-#   @author       erwan lemonnier
-#   @description  test method minus
-#   @system       pluto
-#   @function     base
-#   @function     vf
-#
-
 use strict;
 use warnings;
 use Test::More tests => 16;
@@ -64,8 +53,8 @@ is_deeply($p2->minus($p3)->{polynom},
 is_deeply($p3->minus($p4)->{polynom},
 	  {
 	      1 => -2,
-	      4.6 => 4, 
-	      3.5 => -2, 
+	      4.6 => 4,
+	      3.5 => -2,
 	      5 => 4,
 	      6 => 7,
 	      8 => 9,
@@ -74,7 +63,7 @@ is_deeply($p3->minus($p4)->{polynom},
 
 is_deeply($p4->minus($p3)->{polynom},
 	  {
-	      1 => 2, 
+	      1 => 2,
 	      3.5 => 2,
 	      4.6 => -4,
 	      5 => -4,

@@ -1,14 +1,3 @@
-#################################################################
-#
-#   $Id: 13_test_error_codes.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
-#
-#   @author       erwan lemonnier
-#   @description  test error codes
-#   @system       pluto
-#   @function     base
-#   @function     vf
-#
-
 use strict;
 use warnings;
 use Test::More tests => 4;

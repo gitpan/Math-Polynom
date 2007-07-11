@@ -1,14 +1,3 @@
-#################################################################
-#
-#   $Id: 02_test_new.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
-#
-#   @author       erwan lemonnier
-#   @description  test Math::Polynom->new
-#   @system       pluto
-#   @function     base
-#   @function     vf
-#   
-
 use strict;
 use warnings;
 use Test::More tests => 11;

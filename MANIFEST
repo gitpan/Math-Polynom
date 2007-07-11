@@ -20,6 +20,5 @@ t/12_test_newton_raphson.t
 t/13_test_error_codes.t
 t/14_test_secant.t
 t/15_test_brent.t
-t/20_test__is_nan.t
 t/pod-coverage.t
 t/pod.t

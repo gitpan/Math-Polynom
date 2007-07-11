@@ -25,6 +25,8 @@ This module depends on the following modules:
 
    accessors
    constant
+   Scalar::Util
+   Data::Float
 
 AUTHOR
 

@@ -10,6 +10,8 @@ WriteMakefile(
 	constant  => '0',
 	Data::Dumper => '2.10',
         Carp => '0',
+	Data::Float => '0',
+	Scalar::Util => '1.14',
     },
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/Math/Polynom.pm', # retrieve abstract from module

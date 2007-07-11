@@ -1,14 +1,3 @@
-#################################################################
-#
-#   $Id: 11_test_derivate.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
-#
-#   @author       erwan lemonnier
-#   @description  test method derivate
-#   @system       pluto
-#   @function     base
-#   @function     vf
-#
-
 use strict;
 use warnings;
 use Test::More tests => 7;
@@ -40,7 +29,7 @@ is_deeply($p4->derivate->{polynom},
 	  "derivate [".$p4->stringify."]");
 
 is_deeply($p5->derivate->{polynom},
-	  { 
+	  {
 	      5 => 42,
 	      4 => 10,
 	      3.6 => 18.4,
@@ -50,7 +39,7 @@ is_deeply($p5->derivate->{polynom},
 	  "derivate [".$p5->stringify."]");
 
 is_deeply($p6->derivate->{polynom},
-	  { 
+	  {
 	      4 => -10,
 	      2.5 => 15.75,
 	      0 => 2,

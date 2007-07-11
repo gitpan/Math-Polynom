@@ -1,14 +1,3 @@
-#################################################################
-#
-#   $Id: 07_test_add.t,v 1.3 2007/04/17 19:28:31 erwan_lemonnier Exp $
-#
-#   @author       erwan lemonnier
-#   @description  test method add
-#   @system       pluto
-#   @function     base
-#   @function     vf
-#
-
 use strict;
 use warnings;
 use Test::More tests => 17;
@@ -44,11 +33,11 @@ is_deeply($p3->add($p2)->{polynom},
 
 # the most interesting exemple, by far :)
 is_deeply($p3->add($p4)->{polynom},
-	  { 
+	  {
 	      1 => 2,
-	      4.6 => 4, 
-	      3.5 => 7, 
-	      6 => 7, 
+	      4.6 => 4,
+	      3.5 => 7,
+	      6 => 7,
 	      8 => 9,
 	  },
 	  "p3->add(p4)");

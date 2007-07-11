@@ -2,7 +2,7 @@
 #
 #   Math::Polynom - Operations on polynoms
 #
-#   $Id: Polynom.pm,v 1.9 2007/04/24 05:48:15 erwan_lemonnier Exp $
+#   $Id: Polynom.pm,v 1.10 2007/07/11 13:01:48 erwan_lemonnier Exp $
 #
 #   061025 erwan Started implementation
 #   061206 erwan Added the secant method
@@ -12,6 +12,7 @@
 #   070404 erwan Added $DEBUG
 #   070412 erwan Updated POD
 #   070417 erwan Modified disclaimer
+#   070711 erwan Use looks_like_number and float_is_nan
 #
 
 package Math::Polynom;
@@ -21,6 +22,8 @@ use strict;
 use warnings;
 use Carp qw(confess croak);
 use Data::Dumper;
+use Data::Float qw(float_is_nan);
+use Scalar::Util qw(looks_like_number);
 
 use accessors qw(error error_message iterations xpos xneg);
 
@@ -32,7 +35,7 @@ use constant ERROR_DIVIDE_BY_ZERO => 4;
 use constant ERROR_WRONG_SIGNS    => 5;
 use constant ERROR_NOT_A_ROOT     => 6;
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 our $DEBUG = 0;
 
 #----------------------------------------------------------------
@@ -76,29 +79,6 @@ sub _clean {
     }
 
     return $self;
-}
-
-#----------------------------------------------------------------
-#
-#   _is_number - check that variable is a number
-#
-
-sub _is_number {
-    my $n = shift;
-    return 0 if (!defined $n);
-    return 0 if (ref $n ne '');
-    return $n =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
-}
-
-#----------------------------------------------------------------
-#
-#   _is_nan - return true if the argument is not a real number
-#
-
-sub _is_nan {
-    return 1 if (!defined $_[0]);
-    return 1 if ("$_[0]" =~ /^nan$/i);
-    return 0;
 }
 
 #----------------------------------------------------------------
@@ -157,7 +137,7 @@ sub new {
 
     my %hash = @args;
     foreach my $n (@args) {
-	_error("at least one argument of new() is not numeric:\n".Dumper(\%hash)) if (!_is_number($n));
+	_error("at least one argument of new() is not numeric:\n".Dumper(\%hash)) if (!looks_like_number($n));
     }
 
     my $self = bless({polynom => \%hash},$pkg)->_clean;
@@ -211,14 +191,14 @@ sub eval {
 
     _error("eval() got wrong number of arguments")  if (scalar @_ != 2);
     _error("eval() got undefined argument")         if (!defined $x);
-    _error("eval()'s argument is not numeric ($x)") if (!_is_number($x));
+    _error("eval()'s argument is not numeric ($x)") if (!looks_like_number($x));
 
     my $r = 0;
     while (my($power,$coef) = each %{$self->{polynom}} ) {
 	$r += $coef*($x**$power);
     }
 
-    if (!_is_nan($r)) {
+    if (!float_is_nan($r)) {
 	if (!defined $self->xpos && $r > 0) {
 	    $self->xpos($x);
 	} elsif (!defined $self->xneg && $r < 0) {
@@ -250,7 +230,7 @@ sub add {
     }
 
     # adding a constant to a polynomial
-    _error("add() got non numeric argument") if (!_is_number($p));
+    _error("add() got non numeric argument") if (!looks_like_number($p));
 
     return $self->clone->_add_monom($p,0)->_clean;
 }
@@ -270,7 +250,7 @@ sub minus {
 	return $self->clone->add($p->negate)->_clean;
     }
 
-    _error("minus() got non numeric argument") if (!_is_number($p));
+    _error("minus() got non numeric argument") if (!looks_like_number($p));
 
     return $self->clone->_add_monom(-$p,0)->_clean;
 }
@@ -306,7 +286,7 @@ sub multiply {
 	return $result->_clean;
     }
 
-    _error("multiply() got non numeric argument") if (!_is_number($p));
+    _error("multiply() got non numeric argument") if (!looks_like_number($p));
 
     return __PACKAGE__->new(map { $_, $p * $self->{polynom}->{$_} } keys %{$self->{polynom}})->_clean;
 }
@@ -321,7 +301,7 @@ sub divide {
 
     _error("divide() got wrong number of arguments") if (scalar @_ != 2);
     _error("divide() got undefined argument")        if (!defined $x);
-    _error("divide() got non numeric argument")      if (!_is_number($x));
+    _error("divide() got non numeric argument")      if (!looks_like_number($x));
     _error("cannot divide by 0")                     if ($x == 0);
 
     return __PACKAGE__->new(map { $_, $self->{polynom}->{$_}/$x } keys %{$self->{polynom}})->_clean;
@@ -348,8 +328,8 @@ sub newton_raphson {
     _error("newton_raphson() got undefined guess")       if (!defined $new_guess);
     _error("newton_raphson() got undefined precision")   if (!defined $precision);
     _error("newton_raphson() got undefined max_depth")   if (!defined $max_depth);
-    _error("newton_raphson() got non numeric guess")     if (!_is_number($new_guess));
-    _error("newton_raphson() got non numeric precision") if (!_is_number($precision));
+    _error("newton_raphson() got non numeric guess")     if (!looks_like_number($new_guess));
+    _error("newton_raphson() got non numeric precision") if (!looks_like_number($precision));
     _error("newton_raphson() got non integer max_depth") if ($max_depth !~ /^\d+$/);
 
     $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynom",\%hash)
@@ -372,7 +352,7 @@ sub newton_raphson {
 	    if ($self->iterations > $max_depth);
 
 	$self->_exception(ERROR_NAN,"new guess is not a real number in newton_raphson().",\%hash)
-	    if (_is_nan($new_guess));
+	    if (float_is_nan($new_guess));
     }
 
     if (!$self->_is_root($new_guess)) {
@@ -403,12 +383,12 @@ sub secant {
 
     _error("secant() got undefined precision")      if (!defined $precision);
     _error("secant() got undefined max_depth")      if (!defined $max_depth);
-    _error("secant() got non numeric precision")    if (!_is_number($precision));
+    _error("secant() got non numeric precision")    if (!looks_like_number($precision));
     _error("secant() got non integer max_depth")    if ($max_depth !~ /^\d+$/);
     _error("secant() got undefined p0")             if (!defined $p0);
     _error("secant() got undefined p1")             if (!defined $p1);
-    _error("secant() got non numeric p0")           if (!_is_number($p0));
-    _error("secant() got non numeric p1")           if (!_is_number($p1));
+    _error("secant() got non numeric p0")           if (!looks_like_number($p0));
+    _error("secant() got non numeric p1")           if (!looks_like_number($p1));
     _error("secant() got same value for p0 and p1") if ($p0 == $p1);
 
     $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynomial",\%hash)
@@ -421,7 +401,7 @@ sub secant {
     my $p;
 
     $self->_exception(ERROR_NAN,"q0 or q1 are not a real number in first eval in secant()",\%hash)
-	if (_is_nan($q0) || _is_nan($q1));
+	if (float_is_nan($q0) || float_is_nan($q1));
 
     return $p0 if ($q0 == 0);
     return $p1 if ($q1 == 0);
@@ -436,7 +416,7 @@ sub secant {
 	$p = ($q1 * $p0 - $p1 * $q0) / ($q1 - $q0);
 
 	$self->_exception(ERROR_NAN,"p is not a real number in secant()",\%hash)
-	    if (_is_nan($p));
+	    if (float_is_nan($p));
 
 	my $debug = "secant at depth ".$self->iterations.", p0=$p0, p1=$p1, p=$p";
 
@@ -445,7 +425,7 @@ sub secant {
 	$q1 = $self->eval($p);
 
 	$self->_exception(ERROR_NAN,"q1 is not a real number in secant()",\%hash)
-	    if (_is_nan($q1));
+	    if (float_is_nan($q1));
 
 	_debug($debug.", poly(p)=$q1");
 
@@ -485,12 +465,12 @@ sub brent {
 
     _error("brent() got undefined precision")      if (!defined $precision);
     _error("brent() got undefined max_depth")      if (!defined $max_depth);
-    _error("brent() got non numeric precision")    if (!_is_number($precision));
+    _error("brent() got non numeric precision")    if (!looks_like_number($precision));
     _error("brent() got non integer max_depth")    if ($max_depth !~ /^\d+$/);
     _error("brent() got undefined a")              if (!defined $a);
     _error("brent() got undefined b")              if (!defined $b);
-    _error("brent() got non numeric a")            if (!_is_number($a));
-    _error("brent() got non numeric b")            if (!_is_number($b));
+    _error("brent() got non numeric a")            if (!looks_like_number($a));
+    _error("brent() got non numeric b")            if (!looks_like_number($b));
     _error("brent() got same value for a and b")   if ($a == $b);
 
     $self->_exception(ERROR_EMPTY_POLYNOM,"cannot find the root of an empty polynomial in brent()",\%hash)
@@ -505,7 +485,7 @@ sub brent {
 
     # if the polynom evaluates to a complex number on $a or $b (ex: square root, when $a = -1)
     $self->_exception(ERROR_NAN,"polynomial is not defined on interval [a=$a, b=$b] in brent()",\%hash)
-	if (_is_nan($f_a) || _is_nan($f_b));
+	if (float_is_nan($f_a) || float_is_nan($f_b));
 
     # did we hit the root by chance?
     return $a if ($f_a == 0);
@@ -540,9 +520,9 @@ sub brent {
 	    $f_b = $self->eval($b);
 	    $f_c = $self->eval($c);
 
-	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on a=$a in brent()",\%hash) if (_is_nan($f_a));
-	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on b=$b in brent()",\%hash) if (_is_nan($f_b));
-	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on c=$c in brent()",\%hash) if (_is_nan($f_c));
+	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on a=$a in brent()",\%hash) if (float_is_nan($f_a));
+	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on b=$b in brent()",\%hash) if (float_is_nan($f_b));
+	    $self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on c=$c in brent()",\%hash) if (float_is_nan($f_c));
 	}
 
 	my $debug = "brent at depth ".$self->iterations.", a=$a, b=$b";
@@ -576,7 +556,7 @@ sub brent {
 	# calculate f($s)
 	$f_s = $self->eval($s);
 
-	$self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on s=$s in brent()",\%hash) if (_is_nan($f_s));
+	$self->_exception(ERROR_NAN,"polynomial leads to an imaginary number on s=$s in brent()",\%hash) if (float_is_nan($f_s));
 
 	_debug($debug.", s=$s, poly(s)=$f_s");
 
@@ -938,7 +918,7 @@ See Math::Calculus::NewtonRaphson, Math::Polynomial, Math::Function::Roots.
 
 =head1 VERSION
 
-$Id: Polynom.pm,v 1.9 2007/04/24 05:48:15 erwan_lemonnier Exp $
+$Id: Polynom.pm,v 1.10 2007/07/11 13:01:48 erwan_lemonnier Exp $
 
 =head1 THANKS
 
@@ -946,7 +926,7 @@ Thanks to Spencer Ogden who wrote the implementation of the Secant algorithm in 
 
 =head1 AUTHORS
 
-Erwan Lemonnier C<< <erwan@cpan.org> >>, 
+Erwan Lemonnier C<< <erwan@cpan.org> >>,
 as part of the Pluto developer group at the Swedish Premium Pension Authority.
 
 =head1 LICENSE
